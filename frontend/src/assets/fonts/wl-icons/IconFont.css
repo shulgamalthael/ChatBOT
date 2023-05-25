@@ -1,0 +1,42 @@
+@font-face {
+	font-family: 'fontello';
+	src: url('../../fonts/fontello/fontello.eot?21872627');
+	src: url('../../fonts/fontello/fontello.eot?21872627#iefix') format('embedded-opentype'),
+	url('../../fonts/fontello/fontello.woff2?21872627') format('woff2'),
+	url('../../fonts/fontello/fontello.woff?21872627') format('woff'),
+	url('../../fonts/fontello/fontello.ttf?21872627') format('truetype'),
+	url('../../fonts/fontello/fontello.svg?21872627#fontello') format('svg');
+	font-weight: normal;
+	font-style: normal;
+	font-display: swap;
+}
+
+[class^="chat-icon-"]:before, [class*=" chat-icon-"]:before {
+  font-family: "fontello", sans-serif;
+  font-style: normal;
+  font-weight: normal;
+  /* display: inline-block; */
+  text-decoration: inherit;
+  text-align: center;
+  font-variant: normal;
+  text-transform: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* text-shadow: 1px 1px 1px rgba(127, 127, 127, 0.3); */
+  /* width: 100%; */
+  /* height: 100%; */
+  line-height: 1;
+}
+
+.chat-icon-burger:before { content: '\F14D'; }
+.chat-icon-settings:before { content: '\f11f'; }
+.chat-icon-sound:before { content: '\e9f4'; }
+.chat-icon-power:before { content: '\e9f5'; }
+.chat-icon-mutesound:before { content: '\e9f1'; }
+.chat-icon-close:before { content: '\e80a'; }
+.chat-icon-arrow-down:before { content: '\e803'; }
+.chat-icon-back-arrow:before { content: '\F104'; }
+.chat-icon-user:before { content: '\E87C'; }
+.chat-icon-remove:before { content: '\E807'; }
+.chat-icon-dropdown:before { content: '\F118'; }
+.chat-icon-dropdownbold:before { content: '\E803'; }

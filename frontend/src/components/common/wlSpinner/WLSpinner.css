@@ -1,0 +1,219 @@
+@-webkit-keyframes circle-bounce-delay {
+	0%,100%,80% {
+			-webkit-transform: scale(0);
+			transform: scale(0)
+	}
+
+	40% {
+			-webkit-transform: scale(1);
+			transform: scale(1)
+	}
+}
+
+@keyframes circle-bounce-delay {
+	0%,100%,80% {
+			-webkit-transform: scale(0);
+			transform: scale(0)
+	}
+
+	40% {
+			-webkit-transform: scale(1);
+			transform: scale(1)
+	}
+}
+
+.css-advance-load {
+	position: relative;
+	height: 40px;
+	width: 40px;
+	margin: auto;
+}
+
+.css-advance-load .load-item {
+	height: 100%;
+	left: 0;
+	position: absolute;
+	top: 0;
+	width: 100%
+}
+
+.css-advance-load .load-item:before {
+	-webkit-animation: circle-bounce-delay 1.2s infinite ease-in-out both;
+	animation: circle-bounce-delay 1.2s infinite ease-in-out both;
+	background-color: #fff;
+	border-radius: 100%;
+	content: '';
+	display: block;
+	height: 15%;
+	margin: 0 auto;
+	width: 15%
+}
+
+.css-advance-load .load-item:nth-child(n+1)::before {
+	background-color: #fccf2a;
+}
+
+.css-advance-load .load-item:nth-child(n+2)::before {
+	background-color: #ed9a20
+}
+
+.css-advance-load .load-item:nth-child(n+3)::before {
+	background-color: #e25e90
+}
+
+.css-advance-load .load-item:nth-child(n+4)::before {
+	background-color: #e63975
+}
+
+.css-advance-load .load-item:nth-child(n+5)::before {
+	background-color: #a855c0
+}
+
+.css-advance-load .load-item:nth-child(n+6)::before {
+	background-color: #2e78a9
+}
+
+.css-advance-load .load-item:nth-child(n+7)::before {
+	background-color: #29a0b2
+}
+
+.css-advance-load .load-item:nth-child(n+8)::before {
+	background-color: #0dd6d4
+}
+
+.css-advance-load .load-item:nth-child(n+9)::before {
+	background-color: #09bc83
+}
+
+.css-advance-load .load-item:nth-child(n+10)::before {
+	background-color: #43d31c
+}
+
+.css-advance-load .load-item:nth-child(n+11)::before {
+	background-color: #82df42
+}
+
+.css-advance-load .load-item:nth-child(n+12)::before {
+	background-color: #f3dc17
+}
+
+.css-advance-load .circle-2 {
+	-webkit-transform: rotate(-30deg);
+	-ms-transform: rotate(-30deg);
+	transform: rotate(-30deg)
+}
+
+.css-advance-load .circle-2::before {
+	-webkit-animation-delay: -1.2s;
+	animation-delay: -1.2s
+}
+
+.css-advance-load .circle-3 {
+	-webkit-transform: rotate(-60deg);
+	-ms-transform: rotate(-60deg);
+	transform: rotate(-60deg)
+}
+
+.css-advance-load .circle-3::before {
+	-webkit-animation-delay: -1.3s;
+	animation-delay: -1.3s
+}
+
+.css-advance-load .circle-4 {
+	-webkit-transform: rotate(-90deg);
+	-ms-transform: rotate(-90deg);
+	transform: rotate(-90deg)
+}
+
+.css-advance-load .circle-4::before {
+	-webkit-animation-delay: -1.4s;
+	animation-delay: -1.4s
+}
+
+.css-advance-load .circle-5 {
+	-webkit-transform: rotate(-120deg);
+	-ms-transform: rotate(-120deg);
+	transform: rotate(-120deg)
+}
+
+.css-advance-load .circle-5::before {
+	-webkit-animation-delay: -1.5s;
+	animation-delay: -1.5s
+}
+
+.css-advance-load .circle-6 {
+	-webkit-transform: rotate(-150deg);
+	-ms-transform: rotate(-150deg);
+	transform: rotate(-150deg)
+}
+
+.css-advance-load .circle-6::before {
+	-webkit-animation-delay: -1.6s;
+	animation-delay: -1.6s
+}
+
+.css-advance-load .circle-7 {
+	-webkit-transform: rotate(-180deg);
+	-ms-transform: rotate(-180deg);
+	transform: rotate(-180deg)
+}
+
+.css-advance-load .circle-7::before {
+	-webkit-animation-delay: -1.7s;
+	animation-delay: -1.7s
+}
+
+.css-advance-load .circle-8 {
+	-webkit-transform: rotate(-210deg);
+	-ms-transform: rotate(-210deg);
+	transform: rotate(-210deg)
+}
+
+.css-advance-load .circle-8::before {
+	-webkit-animation-delay: -1.8s;
+	animation-delay: -1.8s
+}
+
+.css-advance-load .circle-9 {
+	-webkit-transform: rotate(-240deg);
+	-ms-transform: rotate(-240deg);
+	transform: rotate(-240deg)
+}
+
+.css-advance-load .circle-9::before {
+	-webkit-animation-delay: -1.9s;
+	animation-delay: -1.9s
+}
+
+.css-advance-load .circle-10 {
+	-webkit-transform: rotate(-270deg);
+	-ms-transform: rotate(-270deg);
+	transform: rotate(-270deg)
+}
+
+.css-advance-load .circle-10::before {
+	-webkit-animation-delay: -2s;
+	animation-delay: -2s
+}
+
+.css-advance-load .circle-11 {
+	-webkit-transform: rotate(-300deg);
+	-ms-transform: rotate(-300deg);
+	transform: rotate(-300deg)
+}
+
+.css-advance-load .circle-11::before {
+	-webkit-animation-delay: -2.1s;
+	animation-delay: -2.1s
+}
+
+.css-advance-load .circle-12 {
+	-webkit-transform: rotate(-330deg);
+	-ms-transform: rotate(-330deg);
+	transform: rotate(-330deg)
+}
+
+.css-advance-load .circle-12::before {
+	-webkit-animation-delay: -2.2s;
+	animation-delay: -2.2s
+}

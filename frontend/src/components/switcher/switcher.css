@@ -1,0 +1,28 @@
+.wl-cb-switcher {
+	position: fixed;
+	display: flex;
+	height: 50px;
+	width: 50px;
+	right: 30px;
+	transition: 1s;
+	cursor: pointer;
+	border-radius: 50%;
+	background-size: cover;
+	background-position: center;
+	box-shadow: var(--primary-shadow);
+	background-color: var(--primary-color);
+}
+
+.wl-cb-switcher:before { 
+	margin: auto;
+	color: var(--secondary-color);
+}
+
+.wl-cb-switcher-false {
+	bottom: 30px;
+	background-image: var(--companion-avatar-url);
+}
+
+.wl-cb-switcher-true {
+	bottom: 660px;
+}
