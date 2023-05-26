@@ -13,6 +13,7 @@ import { createConversationApi, getNewConversationSessionApi, queryConversationB
 import useSocketStore, { IUserData } from "../socket/socket";
 import { useSettingsStore } from "../settings/settings";
 import { Socket } from "socket.io-client";
+import { useUserStore } from "../user/user";
 
 export const conversationLocalStorageKeys = {
 	isBotConversationStopped: "wl-cb-isBotConversationStopped"
@@ -283,15 +284,17 @@ export const useConversationsStore = create<ConversationsState>((set, get): Conv
 	};
 
 	const generateOutputMessage = (messageText: string): IOutputMessage | null => {
+		const userData = useUserStore.getState().userData;
 		const selectedConversation = get().selectedConversation;
 
-		if(!selectedConversation) {
+		if(!selectedConversation || !userData) {
 			return null;
 		}
 
 		return {
 			text: messageText,
-			conversationId: selectedConversation._id, 
+			senderId: userData._id,
+			conversationId: selectedConversation._id,
 			recipients: Array.from(new Set(selectedConversation.recipients)),
 		}
 	}

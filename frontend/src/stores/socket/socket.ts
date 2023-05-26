@@ -6,7 +6,7 @@ import { Socket, io } from "socket.io-client";
 import config from "../../api/config";
 
 export interface IUserData {
-	id: string;
+	_id: string;
 	role: string;
 	email: string;
 	username: string;

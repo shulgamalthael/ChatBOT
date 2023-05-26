@@ -17,7 +17,7 @@ import { BotModule } from "../bot/bot.module";
 const mongooseModels = MongooseModule.forFeature([UserModel]);
 
 const UserModuleImports = [
-	mongooseModels, 
+	mongooseModels,
 	forwardRef(() => BotModule),
 	forwardRef(() => SocketModule),
 ];
@@ -26,5 +26,6 @@ const UserModuleImports = [
 	imports: UserModuleImports,
 	controllers: [UserController],
 	providers: [UserService],
+	exports: [UserService],
 })
 export class UserModule {}

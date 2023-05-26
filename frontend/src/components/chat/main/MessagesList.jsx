@@ -161,7 +161,7 @@ const LiveAgentWaitingDescription = () => {
 	return(
 		<div className="flex flex-col mv-15">
 			<div className="m-auto color-primary fw-700">
-				<div>We are searhing a stuff for You</div>
+				<div>We are searhing a staff for You</div>
 				<div>Please wait</div>
 				<div>Acceptable waiting time {responseDuration} mins.</div>
 			</div>

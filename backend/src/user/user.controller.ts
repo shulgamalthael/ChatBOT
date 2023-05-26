@@ -1,5 +1,5 @@
 /* @nest.js */
-import { Controller, Post, Get, Body, Res, Request, HttpCode, HttpStatus, Param } from "@nestjs/common";
+import { Controller, Post, Get, Body, Res, Request, HttpCode, HttpStatus, Param, Query } from "@nestjs/common";
 
 /* @dto */
 import { UserDto } from "./dto/user.dto";
@@ -29,7 +29,12 @@ export class UserController {
 		return this.socketService.getUsersList();
 	}
 
-	@Get('/user/online/:id')
+	@Get('/staff/list')
+	getStaffList(@Query('offset') offset: string) {
+		return this.userService.getStaffList(offset);
+	}
+
+	@Get('/user/:id')
 	getOnlineUser(@Param('id') id: string) {
 		return this.socketService.getUserById(id)
 	}
@@ -41,7 +46,7 @@ export class UserController {
 			const user = JSON.parse(request.cookies['wlc_cud']);
 
 			if(!request.cookies['wlc_bid']) {
-				response.cookie('wlc_bid', user.businessId);
+				response.cookie('wlc_bid', user.businessId, { sameSite: 'none', secure: true });
 			}
 			return response.json(user);
 		}
@@ -50,8 +55,9 @@ export class UserController {
 			const user = JSON.parse(request.cookies['wlc_gud']);
 			
 			if(!request.cookies['wlc_bid']) {
-				response.cookie('wlc_bid', user.businessId);
+				response.cookie('wlc_bid', user.businessId, { sameSite: 'none', secure: true });
 			}
+
 			return response.json(user);
 		}
 
@@ -59,14 +65,14 @@ export class UserController {
 		const isGuest = user.role === 'guest';
 
 		if(!isGuest) {
-			response.cookie('wlc_cud', JSON.stringify(user));
+			response.cookie('wlc_cud', JSON.stringify(user), { sameSite: 'none', secure: true });
 		}
 
 		if(isGuest) {
-			response.cookie('wlc_gud', JSON.stringify(user));
+			response.cookie('wlc_gud', JSON.stringify(user), { sameSite: 'none', secure: true });
 		}
 
-		response.cookie('wlc_bid', user.businessId);
+		response.cookie('wlc_bid', user.businessId, { sameSite: 'none', secure: true });
 
 		return response.json(user);
 	}

@@ -4,6 +4,7 @@ import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { IUser } from "../user/interfaces/user.interface";
 import { CommandsListDto } from "./dto/commandsListDto";
+import { fillUserData } from "../../utils/scripts/fillUserData";
 
 import { generateId } from "utils/scripts/spawner";
 import { SocketService } from "../socket/socket.service";
@@ -18,7 +19,10 @@ import { IGeneralSettings } from "./interfaces/generalSettings.interface";
 import CommandsListModel, { CommandsList } from "./entities/commandsList";
 import GeneralSettingsModel, { GeneralSettings } from "./entities/generalSettings";
 import LiveAgentSettingsModel, { LiveAgentSettings } from "./entities/liveAgentSettings";
-import { ConversationService } from "src/conversation/conversation.service";
+import { ConversationService } from "../conversation/conversation.service";
+import { NotificationsService } from "../notifications/notifications.service";
+import { NotificationDto } from "../notifications/dto/notificationDto";
+import { UserService } from "../user/user.service";
 
 const isFile = (path: string): boolean => {
 	try {
@@ -79,13 +83,20 @@ const generateLiveAgentSettings = (liveAgentSettings: IgenerateLiveAgentSettings
 @Injectable()
 export class BotService {
 	constructor(
+		@Inject(forwardRef(() => UserService))
+		private readonly usersService: UserService,
 		@Inject(forwardRef(() => SocketService))
 		private readonly socketService: SocketService,
 		@Inject(forwardRef(() => ConversationService))
 		private readonly conversationService: ConversationService,
-		@InjectModel(CommandsListModel.name) private readonly commandsListModel: Model<CommandsList>,
-		@InjectModel(GeneralSettingsModel.name) private readonly generalSettingsModel: Model<GeneralSettings>,
-		@InjectModel(LiveAgentSettingsModel.name) private readonly liveAgentSettingsModel: Model<LiveAgentSettings>,
+		@Inject(forwardRef(() => NotificationsService))
+		private readonly notificationService: NotificationsService,
+		@InjectModel(CommandsListModel.name)
+		private readonly commandsListModel: Model<CommandsList>,
+		@InjectModel(GeneralSettingsModel.name)
+		private readonly generalSettingsModel: Model<GeneralSettings>,
+		@InjectModel(LiveAgentSettingsModel.name)
+		private readonly liveAgentSettingsModel: Model<LiveAgentSettings>,
 	) {}
 
 	async generateGeneralSettings(generalSetttings: IGeneralSettingsGenerationProps, user: IUser) {
@@ -189,8 +200,62 @@ export class BotService {
 
 		if(message.actionType === "liveAgentTrigger") {
 			await this.conversationService.makeConversationStuffAwationById(conversationId);
-			this.socketService.emitEvent(connection, "update/conversation", { conversationId });
-			return await sendLiveAgentDescription();
+			await this.socketService.emitEvent(connection, "update/conversation", { conversationId });
+			await sendLiveAgentDescription();
+			
+			const notificationTitle = message.recipients.reduce((acc, recipient) => {
+				const recipientData = this.socketService.getUserById(recipient, true);
+
+				if(recipientData && recipient !== user.businessId) {
+					if(acc) {
+						acc += `,${recipientData.username}`;
+					}
+
+					if(!acc) {
+						acc += recipientData.username;
+					}
+				}
+
+				return acc;
+			}, "");
+
+			let staffList = await this.usersService.getStaffList(user);
+			staffList = staffList.filter((staff) => staff._id !== user._id);
+			
+			const staffIds = staffList.reduce((acc, staff) => {
+				acc.push(staff._id);
+				return acc;
+			}, []);
+
+			const notifications: NotificationDto[] = staffList.map((staff) => ({
+				to: staff._id,
+				conversationId,
+				staffList: staffIds,
+				isSocketAction: true,
+				from: message.senderId,
+				title: notificationTitle,
+				accept: "conversation/staff/accept",
+				decline: "conversation/staff/decline",
+				actionType: "conversationStaffAwaition",
+			}));
+
+			const sendNotifications = async (staffIndex: number = 0) => {
+				if(staffList.length <= staffIndex) {
+					return true;
+				}
+
+				const staffConnectionData = this.socketService.getConnectionByUserId(staffList[staffIndex]._id, true);
+
+				await this.notificationService.addNotificationByUserId(notifications[staffIndex], staffList[staffIndex]);
+				
+				if(staffConnectionData) {
+					await this.socketService.sendNotification(notifications[staffIndex], staffConnectionData);
+				}
+
+				return sendNotifications(staffIndex + 1);
+			}
+
+			return sendNotifications();
 		}
 
 		const defaultRejectingCommand = {

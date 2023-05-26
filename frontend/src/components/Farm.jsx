@@ -10,6 +10,7 @@ import { useUsersStore } from "../stores/users/users";
 import { useBotSettings } from "../stores/botSettings/botSettingsStore";
 import { audioList, useSettingsStore } from "../stores/settings/settings";
 import { useConversationsStore } from "../stores/conversations/conversations";
+import { useNotificationsStore } from "../stores/notifications/notificationsStore";
 
 const DeployingFarm = () => {
 	const isAuthorized = useSettingsStore((state) => state.isAuthorized);
@@ -122,9 +123,14 @@ const SocketFarm = () => {
 }
 
 const UsersFarm = () => {
-	const queryOnlineUsersList = useUsersStore(state => state.queryOnlineUsersList);
+	const queryStaffList = useUsersStore((state) => state.queryStaffList);
+	const queryOnlineUsersList = useUsersStore((state) => state.queryOnlineUsersList);
 
 	console.log("Users's Farm Rendered!");
+
+	useEffect(() => {
+		queryStaffList();
+	}, [queryStaffList]);
 
 	useEffect(() => {
 		queryOnlineUsersList();
@@ -288,6 +294,16 @@ const BotSettingsFarm = () => {
 	return null;
 }
 
+const NotificationsFarm = () => {
+	const queryNotificationsList = useNotificationsStore((state) => state.queryNotificationsList);
+	
+	useEffect(() => {
+		queryNotificationsList();
+	}, [queryNotificationsList]);
+
+	return null;
+}
+
 const UnauthorizedPart = () => {
 	return(
 		<React.Fragment>
@@ -327,6 +343,7 @@ const DeployedPart = () => {
 			<LiveAgentFarm />
 			<BotSettingsFarm />
 			<ConversationsFarm />
+			<NotificationsFarm />
 		</React.Fragment>
 	)
 }

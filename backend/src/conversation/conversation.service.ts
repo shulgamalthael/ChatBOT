@@ -233,7 +233,7 @@ export class ConversationService {
 		if(!generalSettings) {
 			generalSettings = await this.botService.getGeneralSettings(user);
 			
-			response.cookie('wlc_gs', JSON.stringify(generalSettings));
+			response.cookie('wlc_gs', JSON.stringify(generalSettings), { sameSite: 'none', secure: true });
 		}
 
 		const offset = 0;

@@ -29,7 +29,7 @@ const privateKey = readFileSync(`${securityBedPath}/localhost-privateKey4488.pem
 
 const appOptions = {
 	httpsOptions: { key: privateKey, cert: certificate },
-	cors: { origin: ['https://localhost:3000', 'https://localhost:80', 'https://localhost:5000'], credentials: true },
+	cors: { origin: ['https://localhost:3000', 'https://localhost:80', 'https://localhost:5000', 'http://127.0.0.1:5500'], credentials: true },
 }
 
 const validationPipe = new ValidationPipe({

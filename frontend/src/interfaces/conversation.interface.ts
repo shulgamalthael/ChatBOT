@@ -41,6 +41,7 @@ export interface IInputMessage {
 export interface IOutputMessage {
 	text: string;
 	link?: string;
+	senderId: string;
 	isForce?: boolean;
 	actionType?: string;
 	recipients: string[];

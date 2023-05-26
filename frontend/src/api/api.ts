@@ -6,18 +6,27 @@ import { IUserData } from "../stores/socket/socket";
 
 /* @constansts */
 import { defaultLimit } from "../constants/params";
-import { ICommand, IGeneralSettings, ILiveAgentSettings, IPage } from "../stores/botSettings/botSettingsStore";
 import { IConversationData } from "../interfaces/conversation.interface";
+import { ICommand, IGeneralSettings, ILiveAgentSettings, IPage } from "../stores/botSettings/botSettingsStore";
+import { IGenericObjectType } from "../interfaces/genericObjectType";
 
-export const queryOnlineUsersListAPI = () => {
-	return request("/api/user/list");
+export const queryNotificationsListAPI = (offset: number = 1) => {
+	return request(`/api/notifications/list?offset=${offset}`);
+}
+
+export const queryOnlineUsersListAPI = (offset: number = 1) => {
+	return request(`/api/user/list?offset=${offset}`);
+}
+
+export const queryStaffListAPI = (offset: number = 1) => {
+	return request(`/api/user/staff/list?offset=${offset}`);
 }
 
 export const queryConversationByIdAPI = (conversationId: string, offset = 1) => {
 	return request(`/api/conversation/id/${conversationId}?offset=${offset}`);
 }
 
-export const authorizeUserAPI = (userData: IUserData) => {
+export const authorizeUserAPI = (userData: IGenericObjectType) => {
 	return request("/api/user/authorization", "POST", userData);
 }
 

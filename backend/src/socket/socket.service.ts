@@ -24,6 +24,7 @@ import { ConversationService } from '../conversation/conversation.service';
 import { IInputMessageProps, IOutputMessage } from './interfaces/message.interface';
 import { Connections, IConnectedUser, IUserConnection } from './interfaces/connection.interface';
 import { IGenericObjectType } from 'utils/interfaces/genericObjectType';
+import { NotificationDto } from 'src/notifications/dto/notificationDto';
 
 @Injectable()
 export class SocketService {
@@ -238,6 +239,7 @@ export class SocketService {
 			isForce: inputMessage.isForce,
 			senderId: inputMessage.senderId,
 			actionType: inputMessage.actionType,
+			recipients: inputMessage.recipients,
 			isCommandMenuOption: inputMessage.isCommandMenuOption
 		};
 
@@ -256,6 +258,10 @@ export class SocketService {
 		}
 
 		return this.sendMessage(messageConfiguration);
+	}
+
+	async sendNotification(notification: NotificationDto, userConnection: IUserConnection) {
+		return userConnection.connection.emit("user/notification", JSON.stringify(notification));
 	}
 
 	emitEvent(connection: Socket, eventType: string, message?: IGenericObjectType) {
@@ -359,5 +365,12 @@ export class SocketService {
 		}
 
 		return null;
+	}
+
+	getStaffList() {
+		const connections = Object.values(this.connections);
+		const staffList = connections.filter((connection) => connection.userData.role === "staff");
+
+		return staffList;
 	}
 }

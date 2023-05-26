@@ -16,6 +16,7 @@ import { UserModule } from './user/user.module';
 import { SocketModule } from './socket/socket.module';
 import { MulterModule } from '@nestjs/platform-express';
 import { ConversationModule } from './conversation/conversation.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 const staticRootPath = process.env.ENV === "PRODUCTION" ? resolve("backend", "frontend_build") : resolve("frontend_build");
 // const mongodbserverString = process.env.ENV === "PRODUCTION" ? "user1:12345678@mongodb:27017" : "127.0.0.1:27017";
@@ -31,6 +32,7 @@ const appImports = [
 	SocketModule,
 	deployStaticFiles,
 	ConversationModule,
+	NotificationsModule,
 	deployMongooseConnection,
 	ConfigModule.forRoot({ envFilePath: '.env' }),
 	MulterModule.register({ dest: "./uploads" }),
@@ -40,6 +42,6 @@ const appImports = [
 	imports: appImports,
 	controllers: [],
 	providers: [],
-	exports: [ConversationModule, SocketModule, BotModule, ConfigModule],
+	exports: [ConversationModule, NotificationsModule, SocketModule, BotModule, ConfigModule],
 })
 export class AppModule {}

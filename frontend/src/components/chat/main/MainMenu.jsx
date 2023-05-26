@@ -1,5 +1,5 @@
 /* @react */
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 
 /* @stores */
 import { useUserStore } from "../../../stores/user/user";
@@ -10,28 +10,35 @@ import { useConversationsStore } from "../../../stores/conversations/conversatio
 /* @components */
 import Avatar from "../../common/Avatar";
 import NetworkIndicator from "../../common/NetworkIndicator";
-import Section from "../../settings/Section";
-import Label from "../../settings/Label";
-import Input from "../../common/Input";
+import { useNotificationsStore } from "../../../stores/notifications/notificationsStore";
 
 const Staff = ({ staff }) => {
+	const userData = useUserStore((state) => state.userData);
+
+	const userName = staff._id === userData?._id
+		?	`${staff.username} (You)`
+		:	staff.username
+	;
+
 	return(
 		<div className="chat-menu-item">
-			<div className="chat-menu-item-avatar" style={{ backgroundImage: `url(${staff?.avatarUrl})` }}>
-				<NetworkIndicator isOnline />
+			<div className="h-25 w-25">
+				<Avatar avatarUrl={staff.avatarUrl} isOnline />
 			</div>
-			<div className="chat-menu-item-name">{staff.connectionId}</div>
+			<div className="chat-menu-item-name">{userName}</div>
 		</div>
 	)
 }
 
 const StaffList = () => {
-	const [connectionsList] = useState([]);
+	const staffList = useUsersStore((state) => state.staffList);
 	console.log("Staff List Rendered!");
 
-	return(
-		connectionsList.map(connection => <Staff key={connection.connectionId} staff={connection} />)
-	)
+	if(!Array.isArray(staffList) || !staffList.length) {
+		return <div className="color-primary">Staff list is empty.</div>
+	}
+
+	return(staffList.map((staff) => <Staff key={staff._id} staff={staff} />))
 }
 
 /* make unique for everything application */
@@ -111,8 +118,8 @@ const ConversationsList = () => {
 		;
 	}, []);
 
-	if(!Array.isArray(conversations)) {
-		return null;
+	if(!Array.isArray(conversations) || !conversations.length) {
+		return <div className="color-primary">Conversations list is empty.</div>
 	}
 
 	return(
@@ -178,6 +185,10 @@ const UsersList = () => {
 		return acc;
 	}, []), [usersList]);
 
+	if(!Array.isArray(usersList) || !usersList.length) {
+		return <div className="color-primary">Users list is empty.</div>
+	}
+
 	console.log("Users List Rendered!");
 
 	return trueUsersList.map((user) => <User key={user._id} user={user} />)
@@ -189,12 +200,23 @@ const Settings = () => {
 	)
 }
 
+const NotificationsList = () => {
+	const notificationsList = useNotificationsStore((state) => state.notificationsList);
+
+	if(!Array.isArray(notificationsList) && !notificationsList.length) {
+		return <div className="color-primary">Notifications list is empty.</div>
+	}
+
+	return null;
+}
+
 const renderTab = (tabState) => {
-	if(tabState.show) {
-		switch(tabState.tabName) {
+	if (tabState.show) {
+		switch (tabState.tabName) {
+			case "settings": return <Settings />;
 			case "usersList": return <UsersList />;
 			case "staffList": return <StaffList />;
-			case "settings": return <Settings />;
+			case "notifications": return <NotificationsList />;
 			default: return <ConversationsList />;
 		}
 	}
@@ -295,9 +317,13 @@ const MenuItems = () => {
 		changeMainMenuTabState(true, 'usersList');
 	}, [changeMainMenuTabState]);
 
-	const showSettings = useCallback(() => {
-		changeMainMenuTabState(true, 'settings');
-	}, [changeMainMenuTabState])
+	// const showSettings = useCallback(() => {
+	// 	changeMainMenuTabState(true, 'settings');
+	// }, [changeMainMenuTabState]);
+
+	const showNotifications = useCallback(() => {
+		changeMainMenuTabState(true, 'notifications');
+	}, [changeMainMenuTabState]);
 	
 	console.log("Main Menu Items Rendered!");
 
@@ -305,10 +331,11 @@ const MenuItems = () => {
 		<div className="main-menu-buffer">
 			<Tab />
 			<AssistantMenuOption />
+			<div onClick={showNotifications} className="chat-menu-item">Notifications</div>
 			<ConversationsButton />
 			<div onClick={showStaffList} className="chat-menu-item">Staff</div>
 			<div onClick={showUsersList} className="chat-menu-item">Users</div>
-			<div onClick={showSettings} className="chat-menu-item">Settings</div>
+			{/* <div onClick={showSettings} className="chat-menu-item">Settings</div> */}
 			<div onClick={displayChatBOTSettings} className="chat-menu-item">BOT Settings</div>
 		</div>
 	)

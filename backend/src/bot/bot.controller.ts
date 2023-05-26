@@ -26,7 +26,7 @@ export class BotController {
 
 		generalSettings = await this.botService.getGeneralSettings(user);
 
-		response.cookie('wlc_gs', JSON.stringify(generalSettings));
+		response.cookie('wlc_gs', JSON.stringify(generalSettings), { sameSite: 'none', secure: true });
 
 		return response.json(generalSettings);
 	}
@@ -38,7 +38,7 @@ export class BotController {
 		user = JSON.parse(user);
 
 		const generalSettings = await this.botService.saveGeneralSettings(body, user);
-		response.cookie('wlc_gs', JSON.stringify(generalSettings));
+		response.cookie('wlc_gs', JSON.stringify(generalSettings), { sameSite: 'none', secure: true });
 
 		return response.json(generalSettings);
 	}
@@ -95,7 +95,7 @@ export class BotController {
 		user = JSON.parse(user);
 
 		const generalSettings = await this.botService.saveBOTAvatar(botAvatar, user);
-		response.cookie('wlc_gs', JSON.stringify(generalSettings));
+		response.cookie('wlc_gs', JSON.stringify(generalSettings), { sameSite: 'none', secure: true });
 
 		return response.json(generalSettings);
 	}
@@ -126,7 +126,7 @@ export class BotController {
 
 		liveAgentSettings = await this.botService.getLiveAgentSettings(user);
 
-		response.cookie('wlc_las', JSON.stringify(liveAgentSettings));
+		response.cookie('wlc_las', JSON.stringify(liveAgentSettings), { sameSite: 'none', secure: true });
 
 		return response.json(liveAgentSettings);
 	}
@@ -139,7 +139,7 @@ export class BotController {
 
 		const liveAgentSettings = await this.botService.saveLiveAgentSettings(body, user);
 
-		response.cookie('wlc_las', JSON.stringify(liveAgentSettings));
+		response.cookie('wlc_las', JSON.stringify(liveAgentSettings), { sameSite: 'none', secure: true });
 
 		return response.json(liveAgentSettings);
 	}

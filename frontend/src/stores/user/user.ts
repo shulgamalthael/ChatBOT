@@ -4,12 +4,19 @@ import { create } from "zustand";
 /* @api */
 import { authorizeUserAPI } from "../../api/api";
 import { useSettingsStore } from "../settings/settings";
+import { IUserData } from "../socket/socket";
+import { IGenericObjectType } from "../../interfaces/genericObjectType";
 
 export const fakeUserData = { username: 'Nikita', email: 'nikita@nikita.com' };
 
-export const useUserStore = create((set, get) => {
+interface IUserStore {
+	userData: IUserData | null,
+	fetchUserData: (userData: IUserData) => void;
+}
+
+export const useUserStore = create<IUserStore>((set, get): IUserStore => {
 	const fetchUserData = async (userData: Object) => {
-		const trueUserData = userData
+		const trueUserData: IGenericObjectType = userData
 			? userData
 			: { businessId: "4444" }
 		;
