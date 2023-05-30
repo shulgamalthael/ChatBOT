@@ -17,16 +17,16 @@ export interface IUserData {
 }
 
 export interface ISocketStore {
-	socket: Socket | null,
-	processSocketConnection: () => void,
-	processSocketDisconnection: () => void,
+	socket: Socket | null;
+	processSocketConnection: () => void;
+	processSocketDisconnection: () => void;
 }
 
 const useSocketStore = create<ISocketStore>((set: Function, get: Function): ISocketStore => {
 	const processSocketConnection = () => {
 		console.log('new Socket Connection', new Date().toISOString());
 		let socket = get().socket;
-		if(socket) {
+		if(socket && socket.connected) {
 			socket.disconnect();
 		}
 

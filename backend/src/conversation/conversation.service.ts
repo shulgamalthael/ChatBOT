@@ -20,7 +20,7 @@ import { SocketService } from "../socket/socket.service";
 /* @interfaces */
 import { IUser } from "../user/interfaces/user.interface";
 import { IOutputMessage } from "src/socket/interfaces/message.interface";
-import { IConnectedUser } from "../socket/interfaces/connection.interface";
+import { IConnectedUser, IUserConnection } from "../socket/interfaces/connection.interface";
 import { FilledConversation, IConversation } from "./interfaces/conversation.interface";
 
 /* @dto */
@@ -28,6 +28,7 @@ import { ConversationDto } from "./dto/conversationDto/ConversationDto";
 import { FindConversationsPageByUserIdDTO } from "./dto/conversationDto/FindConversationPageByUserIdDTO";
 import { ConversationMessagesPagination } from "./dto/conversationDto/ConversationMessagesPagination";
 import { IGeneralSettings } from "src/bot/interfaces/generalSettings.interface";
+import { NotificationsService } from "src/notifications/notifications.service";
 
 const generateConversation = (conversation: IConversation, user: IUser): IConversation => ({
 	_id:  conversation._id,
@@ -37,7 +38,8 @@ const generateConversation = (conversation: IConversation, user: IUser): IConver
 	recipients:  conversation.recipients,
 	businessId:  conversation.businessId,
 	franchiseId:  conversation.franchiseId,
-	isConversationWaitingStuff: conversation.isConversationWaitingStuff,
+	isConversationWaitingStaff: conversation.isConversationWaitingStaff,
+	isConversationSupportedByStaff: conversation.isConversationSupportedByStaff,
 	unreadedMessagesCount: conversation.unreadedMessagesCount || conversation.messages.filter((_message) => _message.sender._id !== user._id && !_message.isReaded).length,
 });
 
@@ -48,6 +50,8 @@ export class ConversationService {
 		private readonly botService: BotService,
 		@Inject(forwardRef(() => SocketService))
 		private readonly socketService: SocketService,
+		@Inject(forwardRef(() => NotificationsService))
+		private readonly notificationsService: NotificationsService,
 		@InjectModel(User.name) private readonly userModel: Model<User>,
 		@InjectModel(Message.name) private readonly messageModel: Model<Message>,
 		@InjectModel(Messages.name) private readonly messagesModel: Model<Messages>,
@@ -64,11 +68,6 @@ export class ConversationService {
 		if(!conversation) {
 			throw new HttpException(`Conversation ${id} does not found!`, HttpStatus.NOT_FOUND);
 		}
-
-		// if(conversation) {
-		// 	conversation.messages.reverse();
-		// 	conversation.messages = conversation.messages.slice(offset * limit, (offset * limit) + limit);
-		// }
 
 		if(!conversation.recipients.includes(user._id)) {
 			throw new HttpException(`User ${user._id} does not belonging to conversation ${id}!`, HttpStatus.UNAUTHORIZED);
@@ -90,7 +89,9 @@ export class ConversationService {
 		conversationData.messages = conversation.messages.slice(offset * limit, (offset * limit) + limit);
 		conversationData.messages.reverse();
 
-		return this.fillConversation(conversationData, user, generalSettings);
+		const filledConversation = await this.fillConversation(conversationData, user, generalSettings);
+
+		return filledConversation;
 	}
 
 	async saveConversationMessage(conversationId: string, user: IUser, message: IOutputMessage) {
@@ -240,9 +241,19 @@ export class ConversationService {
 		const limit = 25;
 
 		/* make possible extract sliced messages from database */
-		let conversation = await this.conversationModel.findOne({ 
-			recipients: { $all: [user._id, ...conversationDto.recipients], $size: conversationDto.recipients.length + 1 },
-		}).exec();
+		let conversation;
+
+		if(conversationDto.recipients.includes(user.businessId)) {
+			conversation = await this.conversationModel.findOne({
+				recipients: { $all: [user._id, ...conversationDto.recipients] },
+			}).exec();
+		}
+
+		if(!conversationDto.recipients.includes(user.businessId)) {
+			conversation = await this.conversationModel.findOne({
+				recipients: { $all: [user._id, ...conversationDto.recipients], $size: conversationDto.recipients.length + 1 },
+			}).exec();
+		}
 
 		let conversationData: IConversation;
 
@@ -268,16 +279,16 @@ export class ConversationService {
 		conversation = await conversation.save();
 
 		conversationData = await this.fillConversation(generateConversation(conversation, user), user, generalSettings)
-
+	
 		return response.json(conversationData);
 	}
 
-	async makeConversationStuffAwationById(conversationId) {
+	async makeConversationStaffAwationById(conversationId) {
 		if(!conversationId) {
 			throw new HttpException("conversationId is invalid!", HttpStatus.BAD_REQUEST);
 		}
 
-		const conversation = this.conversationModel.findOneAndUpdate({ _id: conversationId }, { isConversationWaitingStuff: true });
+		const conversation = this.conversationModel.findOneAndUpdate({ _id: conversationId }, { isConversationWaitingStaff: true });
 
 		if(!conversation) {
 			throw new HttpException(`Conversation #${conversationId} does not exist!`, HttpStatus.BAD_REQUEST);
@@ -286,12 +297,12 @@ export class ConversationService {
 		return conversation;
 	}
 
-	async makeConversationStuffUnawationById(conversationId) {
+	async makeConversationStaffUnawationById(conversationId) {
 		if(!conversationId) {
 			throw new HttpException("conversationId is invalid!", HttpStatus.BAD_REQUEST);
 		}
 
-		const conversation = this.conversationModel.findOneAndUpdate({ _id: conversationId }, { isConversationWaitingStuff: false });
+		const conversation = this.conversationModel.findOneAndUpdate({ _id: conversationId }, { isConversationWaitingStaff: false });
 
 		if(!conversation) {
 			throw new HttpException(`Conversation #${conversationId} does not exist!`, HttpStatus.BAD_REQUEST);
@@ -340,26 +351,193 @@ export class ConversationService {
 			throw new HttpException("Missing General Settings!", HttpStatus.BAD_REQUEST);
 		}
 
-		const conversation = await this.conversationModel.findOneAndUpdate({ _id: conversationId }, { isConversationWaitingStuff: false }, { returnOriginal: false }).exec();
+		const conversation = await this.findConversationById(conversationId, user);
 
-		if(!conversation) {
-			throw new HttpException(`Conversation #${conversationId} does not exist!`, HttpStatus.BAD_REQUEST);
-		}
+		conversation.isConversationWaitingStaff = false;
+		conversation.isConversationSupportedByStaff = false;
+
+		await conversation.save();
+
+		conversation.messages = [];
 
 		const filledConversation = await this.fillConversation(conversation, user, generalSettings);
+
+		await this.notificationsService.removeStaffAwaitionNotificationsByConversationId(conversation._id);
+		await this.sendUpdateConversationTriggerToRecipients(conversation);
 
 		return {
 			_id: filledConversation._id,
 			messages: [],
 			title: filledConversation.title,
+			isConversationWaitingStaff: false,
 			creator: filledConversation.creator,
+			isConversationSupportedByStaff: false,
 			createdAt: filledConversation.createdAt,
 			recipients: filledConversation.recipients,
 			businessId: filledConversation.businessId,
 			franchiseId: filledConversation.franchiseId,
 			recipientsDataById: filledConversation.recipientsDataById,
 			unreadedMessagesCount: filledConversation.unreadedMessagesCount,
-			isConversationWaitingStuff: filledConversation.isConversationWaitingStuff,
 		}
+	}
+
+	async connectStaffToConversation(conversationId: string, staffId: string) {
+		if(!conversationId) {
+			throw new HttpException("Wrong \"conversationId\"!", HttpStatus.BAD_REQUEST);
+		}
+
+		if(!staffId) {
+			throw new HttpException("Wrong \"staffId\"!", HttpStatus.BAD_REQUEST);
+		}
+
+		const conversation = await this.conversationModel.findOne({ _id: conversationId }).exec();
+
+		if(!conversation) {
+			throw new HttpException(`Conversation #${conversationId} does not exist!`, HttpStatus.BAD_REQUEST);
+		}
+
+		if(!conversation.recipients.includes(staffId)) {
+			conversation.recipients.push(staffId);
+		}
+
+		conversation.isConversationWaitingStaff = false;
+		conversation.isConversationSupportedByStaff = true;
+		await conversation.save();
+
+		const staffData = this.socketService.getUserById(staffId);
+
+		await this.sendUserConnectionMessage(conversation, staffData);
+
+		await this.sendUpdateConversationTriggerToRecipients(conversation);
+
+		return conversation;
+	}
+
+	async sendUpdateConversationTriggerToRecipients(conversation: IConversation, recipientIndex: number = 0) {
+		if(conversation.recipients.length <= recipientIndex) {
+			return;
+		}
+
+		const recipientConnectionData = this.socketService.getConnectionByUserId(conversation.recipients[recipientIndex], true);
+
+		if(recipientConnectionData) {
+			await this.socketService.emitEvent(recipientConnectionData.connection, "conversation/update", { conversationId: conversation._id });
+		}
+
+		return this.sendUpdateConversationTriggerToRecipients(conversation, recipientIndex + 1);
+	}
+
+	async sendUserConnectionMessage(conversation: IConversation, user: IUser) {
+		const recipientsConnectionInstances = conversation.recipients.reduce((acc, recipient) => {
+			const recipientConnectionInstances = this.socketService.getAllUserConnectionInstances(recipient);
+
+			if(!!recipientConnectionInstances.length) {
+				acc.push(recipientConnectionInstances);
+			}
+
+			return acc;
+		}, []);
+
+		const sendConnectionMessage = async (recipientIndex: number = 0, instanceIndex: number = 0) => {
+			if(recipientsConnectionInstances.length <= recipientIndex) {
+				return;
+			}
+
+			if(recipientsConnectionInstances[recipientIndex].length <= instanceIndex) {
+				return;
+			}
+
+			const recipientConnectionData = recipientsConnectionInstances[recipientIndex][instanceIndex];
+
+			const message = {
+				text: `${user.username} connected!`,
+				isForce: true,
+				link: undefined,
+				actionType: undefined,
+				isCommandMenuOption: false,
+				conversationId: conversation._id,
+				senderId: conversation.businessId,
+				recipients: conversation.recipients,
+				isConversationSupportedByStaff: true,
+			};
+	
+			const sendedMessage = await this.socketService.sendConversationMessageFromClientToRecipient(recipientConnectionData.connection, message);
+
+			return sendedMessage;
+		}
+
+		sendConnectionMessage();
+	}
+
+	async sendUserDisconnectionMessage(conversation: IConversation, user: IUser) {
+		const recipientsConnectionInstances = conversation.recipients.reduce((acc, recipient) => {
+			const recipientConnectionInstances = this.socketService.getAllUserConnectionInstances(recipient);
+
+			if(!!recipientConnectionInstances.length) {
+				acc.push(recipientConnectionInstances);
+			}
+
+			return acc;
+		}, []);
+
+		const sendConnectionMessage = async (recipientIndex: number = 0, instanceIndex: number = 0) => {
+			if(recipientsConnectionInstances.length <= recipientIndex) {
+				return;
+			}
+
+			if(recipientsConnectionInstances[recipientIndex].length <= instanceIndex) {
+				return;
+			}
+
+			const recipientConnectionData = recipientsConnectionInstances[recipientIndex][instanceIndex];
+
+			const message = {
+				text: `${user.username} disconnected!`,
+				isForce: true,
+				link: undefined,
+				actionType: undefined,
+				isCommandMenuOption: false,
+				conversationId: conversation._id,
+				senderId: conversation.businessId,
+				recipients: conversation.recipients,
+				isConversationSupportedByStaff: true,
+			};
+	
+			const sendedMessage = await this.socketService.sendConversationMessageFromClientToRecipient(recipientConnectionData.connection, message);
+
+			return sendedMessage;
+		}
+
+		sendConnectionMessage();
+	}
+
+	async startConversationSupportingByStaff(conversationId: string, staffId: string, user: IUser, generalSettings: IGeneralSettings) {
+		const conversation = await this.findConversationById(conversationId, user);
+
+		conversation.isConversationSupportedByStaff = true;
+		
+		if(!conversation.recipients.includes(staffId)) {
+			conversation.recipients.push(staffId);
+		}
+
+		await conversation.save();
+
+		await this.sendUpdateConversationTriggerToRecipients(conversation);
+		await this.sendUserConnectionMessage(conversation, user);
+
+		return this.fillConversation(conversation, user, generalSettings);
+	}
+
+	async endConversationSupportingByStaff(conversationId: string, user: IUser, generalSettings: IGeneralSettings) {
+		const conversation = await this.findConversationById(conversationId, user);
+
+		conversation.isConversationSupportedByStaff = false;
+		
+		await conversation.save();
+
+		await this.sendUpdateConversationTriggerToRecipients(conversation);
+		await this.sendUserDisconnectionMessage(conversation, user);
+
+		return this.fillConversation(conversation, user, generalSettings);
 	}
 }

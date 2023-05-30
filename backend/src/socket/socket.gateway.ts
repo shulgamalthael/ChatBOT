@@ -1,5 +1,5 @@
 /* @nest.js */
-import { Logger } from '@nestjs/common';
+import { Inject, forwardRef, Logger } from '@nestjs/common';
 import { WebSocketGateway, OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect, ConnectedSocket, SubscribeMessage, MessageBody } from '@nestjs/websockets';
 
 /* @socket.io */
@@ -10,10 +10,16 @@ import { SocketService } from './socket.service';
 
 /* @interfaces */
 import { IInputMessageProps } from './interfaces/message.interface';
+import { NotificationsService } from '../notifications/notifications.service';
+import { INotification } from 'src/notifications/entities/notifications';
 
 @WebSocketGateway({ transport: ['websocket'] })
 export class SocketGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
-	constructor(private readonly socketService: SocketService) {}
+	constructor(
+		@Inject(forwardRef(() => NotificationsService))
+		private readonly notificationsService: NotificationsService,
+		private readonly socketService: SocketService
+	) {}
 
 	private logger = new Logger('SocketGateway');
 
@@ -37,6 +43,20 @@ export class SocketGateway implements OnGatewayInit, OnGatewayConnection, OnGate
 		}
 
 		return this.socketService.sendGreeting(user, message.conversationId);
+	}
+
+	@SubscribeMessage('conversation/staff/accept')
+	acceptStaffConversation(connection, message: string) {
+		const notification: INotification = JSON.parse(message || "{}");
+
+		return this.notificationsService.acceptNotification(notification);
+	}
+
+	@SubscribeMessage('conversation/staff/decline')
+	declineStaffConversation(connection, message: string) {
+		const notification: INotification = JSON.parse(message || "{}");
+
+		return this.notificationsService.declineNotification(notification);
 	}
 
 	@SubscribeMessage('conversation/message')

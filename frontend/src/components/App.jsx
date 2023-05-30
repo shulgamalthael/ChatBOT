@@ -9,7 +9,7 @@ import Farm from "./Farm";
 import Chat from "./chat/Chat";
 import Switcher from "./switcher/Switcher";
 import Settings from "./settings/Settings";
-import CloudMessagesList from "./common/cloudMessagesList/CloudMessagesList";
+import CloudList from "./common/cloudList/CloudList";
 
 const ChatApplication = () => {
 	const isDeployed = useSettingsStore((state) => state.isDeployed);
@@ -33,8 +33,8 @@ const App = () => {
 		<React.Fragment>
 			<Farm />
 			<Settings />
+			<CloudList />
 			<ChatApplication />
-			<CloudMessagesList />
 		</React.Fragment>
   );
 };

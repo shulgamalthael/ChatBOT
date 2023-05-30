@@ -12,6 +12,8 @@ import Slider from "../../common/Slider/Slider";
 
 /* @stylesheet */
 import "./footer.css";
+import SaveButton from "../../common/SaveButton";
+import WLSpinner from "../../common/wlSpinner/WLSpinner";
 
 const SoundSlider = () => {
 	console.log("Sound Slider Rendered!");
@@ -50,23 +52,41 @@ const VolumeBlock = () => {
 }
 
 const PowerBlock = () => {
-	const socket = useSocketStore((state) => state.socket);
 	const userData = useUserStore((state) => state.userData);
 	const stopBOTConversation = useConversationsStore((state) => state.stopBOTConversation);
 	const startBOTConversation = useConversationsStore((state) => state.startBOTConversation);
 	const selectedConversation = useConversationsStore((state) => state.selectedConversation);
 	const isStopped = useConversationsStore((state) => state.botConversationSettings.isStopped);
+	const isConversationSupportedByStaff = useConversationsStore((state) => state.isConversationSupportedByStaff);
+	const endConversationSupportingByStaff = useConversationsStore((state) => state.endConversationSupportingByStaff);
+	const isConversationSupportingDataFetching = useConversationsStore((state) => state.isConversationSupportingDataFetching);
 	const iconClass = isStopped ? "chat-icon-dropdown rotate-270" : "chat-icon-power";
 
-	const clickCallback = useCallback((e) => {
+	const isUserAreStaff = userData?.role === "staff";
+	const isUserAreConversationCreator = userData?._id === selectedConversation?.creator;
+	const isBotConversation = selectedConversation?.recipients?.includes(userData?.businessId);
+
+	const clickCallback = (e) => {
 		e?.preventDefault();
 		e?.stopPropagation();
-		
-		return isStopped && selectedConversation ? startBOTConversation() : stopBOTConversation();
-	}, [isStopped, selectedConversation]);
 
-	if(!selectedConversation || !userData || !userData?.businessId || !selectedConversation?.recipients?.includes(userData?.businessId)) {
+		if(isConversationSupportedByStaff && isUserAreStaff) {
+			return endConversationSupportingByStaff();
+		}
+
+		return isStopped && selectedConversation ? startBOTConversation() : stopBOTConversation();
+	};
+
+	if(!selectedConversation || !userData || !userData?.businessId || !isBotConversation) {
 		return null;
+	}
+
+	if(isBotConversation && !isConversationSupportedByStaff && isUserAreStaff && !isUserAreConversationCreator) {
+		return null;
+	}
+
+	if(isBotConversation && isConversationSupportedByStaff && isConversationSupportingDataFetching) {
+		return <WLSpinner className="scale-50" />
 	}
 
 	return(
@@ -102,16 +122,25 @@ const FooterSettingsBlock = () => {
 const MessageInput = () => {
 	const socket = useSocketStore((state) => state.socket);
 	const userData = useUserStore((state) => state.userData);
+	const processSocketConnection = useSocketStore((state) => state.processSocketConnection);
+	const isConversationLocked = useConversationsStore((state) => state.isConversationLocked);
 	const selectedConversation = useConversationsStore((state) => state.selectedConversation);
 	const generateOutputMessage = useConversationsStore((state) => state.generateOutputMessage);
 	const isStopped = useConversationsStore((state) => state.botConversationSettings.isStopped);
-	const isConversationWaitingStuff = useConversationsStore((state) => state.isConversationWaitingStuff);
+	const isConversationWaitingStaff = useConversationsStore((state) => state.isConversationWaitingStaff);
+	const isConversationLockedForStaff = useConversationsStore((state) => state.isConversationLockedForStaff);
+	const startConversationSupportingByStaff = useConversationsStore((state) => state.startConversationSupportingByStaff);
+	const isConversationSupportingDataFetching = useConversationsStore((state) => state.isConversationSupportingDataFetching);
 
 	console.log("MessageInput Rendered!");
 
 	const isBotConversation = selectedConversation?.recipients?.includes(userData?.businessId);
 
 	const sendMessageCallback = useCallback((e) => {
+		if(!socket || !socket.connected) {
+			processSocketConnection();
+		}
+
 		if(socket && socket.connected && e.keyCode === 13 && e.target.value) {
 			const newMessage = generateOutputMessage(e.target.value);
 
@@ -122,8 +151,21 @@ const MessageInput = () => {
 		}
 	}, [socket, generateOutputMessage]);
 
+	const isUserCreatedConversation = userData?._id === selectedConversation?.creator;
 	
-	if(!selectedConversation || (isStopped && isBotConversation) || isConversationWaitingStuff) {
+	if(isConversationLockedForStaff) {
+		return(
+			<SaveButton 
+				className="m-auto flex"
+				click={startConversationSupportingByStaff} 
+				isLoading={isConversationSupportingDataFetching} 
+			>
+				Start Conversation
+			</SaveButton>
+		)
+	}
+
+	if(isConversationLocked || (isStopped && isBotConversation && !isUserCreatedConversation) || isConversationWaitingStaff) {
 		return null;
 	}
 

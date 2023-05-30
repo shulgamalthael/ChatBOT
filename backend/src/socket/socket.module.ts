@@ -11,10 +11,14 @@ import { SocketGateway } from './socket.gateway';
 
 /* @services */
 import { SocketService } from './socket.service';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { UserModule } from 'src/user/user.module';
 
 const SocketModuleImports = [
 	forwardRef(() => BotModule),
+	forwardRef(() => UserModule),
 	forwardRef(() => ConversationModule),
+	forwardRef(() => NotificationsModule),
 	MongooseModule.forFeature([ConversationModel]),
 ];
 

@@ -1,5 +1,5 @@
 /* @react */
-import { memo } from "react";
+import React, { memo } from "react";
 
 /* @stylesheet */
 import "./header.css";

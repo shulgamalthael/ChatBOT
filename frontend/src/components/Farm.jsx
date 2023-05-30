@@ -7,6 +7,7 @@ import { useLocation } from "react-router-dom";
 import { useUserStore } from "../stores/user/user";
 import useSocketStore from "../stores/socket/socket";
 import { useUsersStore } from "../stores/users/users";
+import { useCloudStore } from "../stores/cloud/cloud";
 import { useBotSettings } from "../stores/botSettings/botSettingsStore";
 import { audioList, useSettingsStore } from "../stores/settings/settings";
 import { useConversationsStore } from "../stores/conversations/conversations";
@@ -35,7 +36,7 @@ const DeployingFarm = () => {
 
 const SocketFarm = () => {
 	const socket = useSocketStore((state) => state.socket);
-	const userData = useUserStore((state) => state.userData);
+	const addCloud = useCloudStore((state) => state.addCloud);
 	const playAudio = useSettingsStore((state) => state.playAudio);
 	const addMessage = useConversationsStore((state) => state.addMessage);
 	const allowPagesList = useBotSettings((state) => state.allowPages.list);
@@ -44,8 +45,10 @@ const SocketFarm = () => {
 	const collapseApplication = useSettingsStore((state) => state.collapseApplication);
 	const checkPageAccess = useBotSettings((state) => state.allowPages.checkPageAccess);
 	const processSocketConnection = useSocketStore((state) => state.processSocketConnection);
-	const addCloudMessage = useConversationsStore((state) => state.messagesCloudState.addMessage);
 	const processSocketDisconnection = useSocketStore((state) => state.processSocketDisconnection);
+	const processInputNotification = useNotificationsStore((state) => state.processInputNotification);
+	const processInputConversationMessage = useConversationsStore((state) => state.processInputConversationMessage);
+	const processNotificationsListUpdating = useNotificationsStore((state) => state.processNotificationsListUpdating);
 	const queryConversationByIdAndSelectIt = useConversationsStore((state) => state.queryConversationByIdAndSelectIt);
 
 	const location = useLocation();
@@ -60,13 +63,6 @@ const SocketFarm = () => {
 
 		window.addEventListener("click", callback);
 	}
-
-	const processInputConversationMessage = async (data) => {
-		if(await addMessage(data, userData)) {
-			await addCloudMessage(data);
-			playAudio(audioList.NOTIFICATION);
-		};
-	};
 
 	const processConversationUpdating = ({ conversationId }) => {
 		if(!conversationId) {
@@ -83,7 +79,9 @@ const SocketFarm = () => {
 
 		socket.on("user-connection", queryOnlineUsersList);
 		socket.on("user-disconnection", queryOnlineUsersList);
-		socket.on("update/conversation", processConversationUpdating);
+		socket.on("user/notification", processInputNotification);
+		socket.on("conversation/update", processConversationUpdating);
+		socket.on("notification/list/update", processNotificationsListUpdating);
 		socket.on("conversation/message/client", processInputConversationMessage);
 	};
 
@@ -159,7 +157,6 @@ const UserFarm = () => {
 const ConversationsFarm = () => {
 	const socket = useSocketStore((state) => state.socket);
 	const userData = useUserStore((state) => state.userData);
-	const isChatOpened = useSettingsStore((state) => state.isChatOpened);
 	const conversations = useConversationsStore((state) => state.conversations);
 	const offset = useConversationsStore((state) => state.conversationsPaginationOffset);
 	const lockBotConversation = useConversationsStore((state) => state.lockBotConversation);
@@ -168,7 +165,10 @@ const ConversationsFarm = () => {
 	const readConversationMessages = useConversationsStore((state) => state.readConversationMessages);
 	const createConversationWithBOT = useConversationsStore((state) => state.createConversationWithBOT);
 	const calculateUnreadedMessagesCount = useConversationsStore((state) => state.calculateUnreadedMessagesCount);
-	const updateIsConversationWaitingStuffState = useConversationsStore((state) => state.updateIsConversationWaitingStuffState);
+	const updateIsConversationLockedState = useConversationsStore((state) => state.updateIsConversationLockedState);
+	const updateIsConversationWaitingStaffState = useConversationsStore((state) => state.updateIsConversationWaitingStaffState);
+	const updateIsConversationSupportedByStaff = useConversationsStore((state) => state.updateIsConversationSupportedByStaffState);
+	const updateIsConversationLockedForStaffState = useConversationsStore((state) => state.updateIsConversationLockedForStaffState);
 
 	const conversationId = selectedConversation?._id;
 
@@ -191,16 +191,27 @@ const ConversationsFarm = () => {
 	}, [conversations, calculateUnreadedMessagesCount]);
 
 	useEffect(() => {
-		const isWaitingStuff = selectedConversation?.isConversationWaitingStuff || false;
+		updateIsConversationLockedForStaffState();
+	}, [selectedConversation, updateIsConversationLockedForStaffState]);
 
-		updateIsConversationWaitingStuffState(isWaitingStuff);
-	}, [selectedConversation]);
+	useEffect(() => {
+		updateIsConversationLockedState();
+	}, [selectedConversation, updateIsConversationLockedState]);
+
+	useEffect(() => {
+		const isWaitingStaff = selectedConversation?.isConversationWaitingStaff || false;
+		const isSupportedByStaff = selectedConversation?.isConversationSupportedByStaff || false;
+
+		updateIsConversationWaitingStaffState(isWaitingStaff);
+		updateIsConversationSupportedByStaff(isSupportedByStaff);
+	}, [selectedConversation, updateIsConversationWaitingStaffState, updateIsConversationSupportedByStaff]);
 
 	useEffect(() => {
 		lockBotConversation(userData);
 	}, [userData, selectedConversation]);
 
 	useEffect(() => {
+		console.log("CONVERSATION ID CHANGED ===>");
 		readConversationMessages();
 	}, [conversationId]);
 
@@ -217,10 +228,6 @@ const ConversationsFarm = () => {
 			socket.emit("bot/sendGreeting", JSON.stringify({ conversationId: selectedConversation._id }));
 		}
 	}, [userData, selectedConversation]);
-
-	useEffect(() => {
-		readConversationMessages();
-	}, [isChatOpened, selectedConversation]);
 
 	console.log("Conversation's Farm Rendered!");
 

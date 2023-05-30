@@ -9,18 +9,16 @@ import { IUser } from "../../interfaces/user.interface";
 import { IConversation, IInputMessage, IOutputMessage, IConversationData } from "../../interfaces/conversation.interface";
 
 /* @api */
-import { createConversationApi, getNewConversationSessionApi, queryConversationByIdAPI, queryConversationsListAPI, QueryConversationsListParams, readConversationMessagesApi } from "../../api/api";
+import { createConversationApi, endSupportingByStaffAPI, getNewConversationSessionApi, queryConversationByIdAPI, queryConversationsListAPI, QueryConversationsListParams, readConversationMessagesApi, startSupportingByStaffAPI } from "../../api/api";
 import useSocketStore, { IUserData } from "../socket/socket";
-import { useSettingsStore } from "../settings/settings";
+import { audioList, useSettingsStore } from "../settings/settings";
 import { Socket } from "socket.io-client";
 import { useUserStore } from "../user/user";
+import { useCloudStore } from "../cloud/cloud";
+
 
 export const conversationLocalStorageKeys = {
 	isBotConversationStopped: "wl-cb-isBotConversationStopped"
-}
-
-export interface ICloudMessage extends IInputMessage {
-	recipientData: IUserData;
 }
 
 interface IBotConversationSettings {
@@ -28,7 +26,7 @@ interface IBotConversationSettings {
 }
 
 interface IMessagesCloudState {
-	list: ICloudMessage[];
+	list: IInputMessage[];
 	closeMessage: (messageIndex: number) => void;
 	addMessage: (message: IInputMessage, isChatOpened: boolean) => void;
 }
@@ -38,11 +36,20 @@ interface ConversationsState {
 	messagesCloudState: IMessagesCloudState;
 	isLastPaginationPage: boolean;
 	conversations: IConversation[];
+
 	isConversationFetching: boolean;
 	isMessagesListFetching: boolean;
+	isConversationSupportingDataFetched: boolean;
+	isConversationSupportingDataFetching: boolean;
+
 	messagesPaginationOffset: number;
 	isMessagesPaginationBlocked: boolean;
-	isConversationWaitingStuff: boolean;
+
+	isConversationLocked: boolean;
+	isConversationWaitingStaff: boolean;
+	isConversationLockedForStaff: boolean;
+	isConversationSupportedByStaff: boolean;
+
 	conversationsPaginationOffset: number;
 	unlockPaginationInTheNextStep: boolean;
 	selectedConversation: IConversation | null;
@@ -60,10 +67,19 @@ interface ConversationsState {
 	createConversationWithBOT: () => Promise<boolean>;
 	lockBotConversation: (userData: IUserData) => void;
 	sendMessageToServer: (message: IInputMessage) => void;
+	addMessage: (message: IInputMessage) => Promise<boolean>;
 	selectConversation: (conversation: IConversation) => void;
 	closeAllSimilarCloudMessages: (messageIndex: number) => void;
-	addMessage: (message: IInputMessage, userData: IUser) => void;
-	updateIsConversationWaitingStuffState: (prop: boolean) => void;
+
+	endConversationSupportingByStaff: () => Promise<void>;
+	startConversationSupportingByStaff: () => Promise<void>;
+	updateIsConversationLockedState: (prop: boolean) => void;
+	updateIsConversationWaitingStaffState: (prop: boolean) => void;
+	updateIsConversationLockedForStaffState: (prop: boolean) => void;
+	updateIsConversationSupportedByStaffState: (prop: boolean) => void;
+	updateIsConversationSupportingDataFetching: (prop: boolean) => void;
+	processInputConversationMessage: (message: IInputMessage) => Promise<void>;
+
 	queryConversationByIdAndSelectIt: (conversationId: string) => void;
 	generateOutputMessage: (messageText: string) => IOutputMessage | null;
 	createConversation: (conversationData: IConversationData) => Promise<boolean>;
@@ -93,10 +109,11 @@ export const useConversationsStore = create<ConversationsState>((set, get): Conv
 	const selectConversation = (conversation: IConversation, isForce: boolean = false) => {
 		const selectedConversation = get().selectedConversation;
 
-		if((!isForce && selectedConversation) && selectedConversation && conversation._id === selectedConversation._id) {
+		if(!isForce && selectedConversation && conversation._id === selectedConversation._id) {
 			return true;
 		}
 
+		
 		if(isForce || !selectedConversation || conversation._id !== selectedConversation._id) {
 			set({ selectedConversation: conversation, isLastPaginationPage: false, messagesPaginationOffset: 1 });
 			return true;
@@ -124,10 +141,7 @@ export const useConversationsStore = create<ConversationsState>((set, get): Conv
 	}
 
 	const unlockMessagesPagination = () => {
-		const unlockPaginationInTheNextStep = get().unlockPaginationInTheNextStep;
-		if(unlockPaginationInTheNextStep) {
-			set({ isMessagesPaginationBlocked: false, unlockPaginationInTheNextStep: false });
-		}
+		set({ isMessagesPaginationBlocked: false, unlockPaginationInTheNextStep: false });
 	}
 
 	const stopBOTConversation = () => {
@@ -237,12 +251,25 @@ export const useConversationsStore = create<ConversationsState>((set, get): Conv
 		return false;
 	}
 
-	const addMessage = async (message: IInputMessage, userData: IUser) => {
-		const conversations = get().conversations;
-		const isConversationWaitingStuff = get().isConversationWaitingStuff;
+	const processInputConversationMessage = async (message: IInputMessage): Promise<void> => {
+		const selectedConversation = get().selectedConversation;
 
-		if(isConversationWaitingStuff && !message.isForce) {
-			return;
+		if(await get().addMessage(message)) {
+			if(selectedConversation && selectedConversation._id !== message.conversationId) {
+				await useCloudStore.getState().addCloud(message, "message");
+			}
+			useSettingsStore.getState().playAudio(audioList.NOTIFICATION);
+		};
+	};
+
+	const addMessage = async (message: IInputMessage): Promise<boolean> => {
+		const conversations = get().conversations;
+		const userData = useUserStore.getState().userData;
+		const selectedConversation = get().selectedConversation;
+		const isConversationWaitingStaff = get().isConversationWaitingStaff;
+
+		if(isConversationWaitingStaff && !message.isForce) {
+			return false;
 		};
 		
 		const conversationIndex = conversations.findIndex((conversation: IConversation) => {
@@ -252,13 +279,16 @@ export const useConversationsStore = create<ConversationsState>((set, get): Conv
 		if(conversationIndex < 0) {
 			const { isFetched, data } = await queryConversationByIdAPI(message.conversationId);
 			if(isFetched && data) {
-				data.messages.push(message);
 				set(produce((draft: ConversationsState) => {
 					// data.messages.push(message);
-					data.unreadedMessagesCount = message.unreadedMessagesCount || 0;
-					draft.unreadedMessagesCount += (message.unreadedMessagesCount || 0);
+					// data.unreadedMessagesCount = message.unreadedMessagesCount || 0;
+					draft.unreadedMessagesCount += data.unreadedMessagesCount || 0;
 					draft.conversations.push(data);
 				}));
+
+				if(selectedConversation?._id === message.conversationId) {
+					get().readConversationMessages();
+				}
 			};
 
 			return false;
@@ -266,15 +296,21 @@ export const useConversationsStore = create<ConversationsState>((set, get): Conv
 
 		if(conversationIndex >= 0) {
 			set(produce((draft: ConversationsState) => {
-				draft.unreadedMessagesCount += (message.unreadedMessagesCount || 0);
-				draft.conversations[conversationIndex].unreadedMessagesCount = message.unreadedMessagesCount || 0;
+				// draft.unreadedMessagesCount += (message.unreadedMessagesCount || 0);
+				// draft.conversations[conversationIndex].unreadedMessagesCount = message.unreadedMessagesCount || 0;
 				draft.conversations[conversationIndex].messages.push(message);
+				draft.conversations[conversationIndex].unreadedMessagesCount += 1;
 				if(draft.selectedConversation && draft.selectedConversation._id === draft.conversations[conversationIndex]._id) {
 					draft.selectedConversation.messages = draft.conversations[conversationIndex].messages;
 					draft.selectedConversation.unreadedMessagesCount = draft.conversations[conversationIndex].unreadedMessagesCount;
 				}
+				draft.unreadedMessagesCount += 1;
 			}));
 		};
+
+		if(selectedConversation?._id === message.conversationId) {
+			get().readConversationMessages();
+		}
 
 		if(userData?._id !== message.sender._id) {
 			return true
@@ -286,6 +322,7 @@ export const useConversationsStore = create<ConversationsState>((set, get): Conv
 	const generateOutputMessage = (messageText: string): IOutputMessage | null => {
 		const userData = useUserStore.getState().userData;
 		const selectedConversation = get().selectedConversation;
+		const isConversationSupportedByStaff = get().isConversationSupportedByStaff;
 
 		if(!selectedConversation || !userData) {
 			return null;
@@ -294,6 +331,7 @@ export const useConversationsStore = create<ConversationsState>((set, get): Conv
 		return {
 			text: messageText,
 			senderId: userData._id,
+			isConversationSupportedByStaff,
 			conversationId: selectedConversation._id,
 			recipients: Array.from(new Set(selectedConversation.recipients)),
 		}
@@ -393,11 +431,17 @@ export const useConversationsStore = create<ConversationsState>((set, get): Conv
 		if(isFetched) {
 			const conversations = get().conversations;
 			const conversationIndex = conversations.findIndex((_conversation) => _conversation._id === selectedConversation._id);
+
 			set(produce((draft) => {
-				const newConversation = draft.conversations[conversationIndex];
-				newConversation.unreadedMessagesCount = data;
-				draft.conversations.splice(conversationIndex, 1, newConversation);
+				draft.conversations[conversationIndex].unreadedMessagesCount = data;
+			
+				if(draft.selectedConversation?._id === draft.conversations[conversationIndex]._id) {
+					draft.selectConversation.unreadedMessagesCount = data;
+				}
+
+				draft.conversations.splice(conversationIndex, 1, draft.conversations[conversationIndex]);
 			}));
+
 			get().calculateUnreadedMessagesCount();
 		}
 	}
@@ -409,33 +453,103 @@ export const useConversationsStore = create<ConversationsState>((set, get): Conv
 				draft.unreadedMessagesCount = draft.conversations.reduce((acc: number, _conversation: IConversation) => {
 					acc += _conversation.unreadedMessagesCount || 0;
 					return acc;
-				}, 0)
+				}, 0);
 			}));
 		}
 	}
 
 	const increaseUnreadedMessagesCount = () => {
-		set({ unreadedMessagesCount: get().unreadedMessagesCount + 1 });
-	}
-
-	const updateIsConversationWaitingStuffState = (prop: boolean): void => {
-		set({
-			isConversationWaitingStuff: prop,
+		set({ 
+			unreadedMessagesCount: get().unreadedMessagesCount + 1 
 		});
 	}
 
-	const scrollIntoView = (element: HTMLElement, behavior: ScrollBehavior = "auto", block: ScrollLogicalPosition = "end", isForce: boolean = false) => {
-		const isConversationWaitingStuff = get().isConversationWaitingStuff;
+	const updateIsConversationLockedState = (): void => {
+		const isConversationLockedForStaff = get().isConversationLockedForStaff;
 
-		if(isForce || !isConversationWaitingStuff) {
+		const isLocked = isConversationLockedForStaff;
+
+		set({
+			isConversationLocked: isLocked,
+		});
+	}
+
+	const updateIsConversationWaitingStaffState = (prop: boolean): void => {
+		set({
+			isConversationWaitingStaff: prop,
+		});
+	}
+
+	const updateIsConversationSupportedByStaffState = (prop: boolean): void => {
+		set({
+			isConversationSupportedByStaff: prop,
+		});
+	}
+
+	const updateIsConversationLockedForStaffState = (): void => {
+		const userData = useUserStore.getState().userData;
+		const selectedConversation = get().selectedConversation;
+
+		const isLocked = Boolean(
+			userData?.role === "staff" &&
+			userData?._id !== selectedConversation?.creator && 
+			selectedConversation && 
+			!selectedConversation?.isConversationWaitingStaff && 
+			!selectedConversation?.isConversationSupportedByStaff
+		);
+
+		set({
+			isConversationLockedForStaff: isLocked,
+		});
+	}
+
+	const startConversationSupportingByStaff = async () => {
+		updateIsConversationSupportingDataFetching(true);
+		const userData = useUserStore.getState().userData;
+		const selectedConversation = get().selectedConversation;
+
+		if(!userData || userData.role !== "staff" || !selectedConversation) {
+			updateIsConversationSupportingDataFetching(false);
+			return;
+		}
+
+
+		await startSupportingByStaffAPI(selectedConversation._id, userData._id);
+		updateIsConversationSupportingDataFetching(false);
+	}
+
+	const endConversationSupportingByStaff = async () => {
+		updateIsConversationSupportingDataFetching(true);
+		const userData = useUserStore.getState().userData;
+		const selectedConversation = get().selectedConversation;
+
+		if(!userData || userData.role !== "staff" || !selectedConversation) {
+			updateIsConversationSupportingDataFetching(false);
+			return;
+		}
+
+		await endSupportingByStaffAPI(selectedConversation._id);
+		updateIsConversationSupportingDataFetching(false);
+	}
+
+	const scrollIntoView = (element: HTMLElement, behavior: ScrollBehavior = "auto", block: ScrollLogicalPosition = "end", isForce: boolean = false) => {
+		const isConversationWaitingStaff = get().isConversationWaitingStaff;
+
+		if(isForce || !isConversationWaitingStaff) {
 			element?.scrollIntoView({ block, behavior });
 		}
 	}
 
 	const sendMessageToServer = (message: IInputMessage) => {
-		const isConversationWaitingStuff = get().isConversationWaitingStuff;
+		const isConversationLocked = get().isConversationLocked;
+		const isConversationWaitingStaff = get().isConversationWaitingStaff;
+		const isConversationSupportedByStaff = get().isConversationSupportedByStaff;
+
+		if(isConversationSupportedByStaff || isConversationLocked) {
+			return;
+		}
 		
-		if(!isConversationWaitingStuff && message.isCommandMenuOption && !message.link) {
+		if(!isConversationWaitingStaff && message.isCommandMenuOption && !message.link) {
 			const socket: Socket | null = useSocketStore.getState().socket;
 			const newMessage: IOutputMessage | null = generateOutputMessage(message.text);
 			
@@ -445,6 +559,13 @@ export const useConversationsStore = create<ConversationsState>((set, get): Conv
 				socket.emit('conversation/message', newMessage);
 			}
 		}
+	}
+
+	const updateIsConversationSupportingDataFetching = (prop: boolean) => {
+		set({
+			isConversationSupportingDataFetched: !prop,
+			isConversationSupportingDataFetching: prop,
+		});
 	}
 
 	return {
@@ -459,16 +580,26 @@ export const useConversationsStore = create<ConversationsState>((set, get): Conv
 		},
 
 		conversations: [],
+		unreadedMessagesCount: 0,
 		selectedConversation: null,
 		messagesPaginationOffset: 1,
 		isLastPaginationPage: false,
+
+
 		isMessagesListFetching: false,
 		isConversationFetching: false,
+		isConversationSupportingDataFetched: false,
+		isConversationSupportingDataFetching: false,
+
 		conversationsPaginationOffset: 1,
-		isConversationWaitingStuff: false,
+
+		isConversationLocked: false,
+		isConversationWaitingStaff: false,
 		isMessagesPaginationBlocked: false,
+		isConversationLockedForStaff: false,
+
 		unlockPaginationInTheNextStep: false,
-		unreadedMessagesCount: 0,
+		isConversationSupportedByStaff: false,
 		
 		addMessage,
 		scrollIntoView,
@@ -490,6 +621,14 @@ export const useConversationsStore = create<ConversationsState>((set, get): Conv
 		calculateUnreadedMessagesCount,
 		toggleConversationFetchingFlag,
 		queryConversationByIdAndSelectIt,
-		updateIsConversationWaitingStuffState,
+		processInputConversationMessage,
+
+		updateIsConversationLockedState,
+		endConversationSupportingByStaff,
+		startConversationSupportingByStaff,
+		updateIsConversationWaitingStaffState,
+		updateIsConversationLockedForStaffState,
+		updateIsConversationSupportedByStaffState,
+		updateIsConversationSupportingDataFetching,
 	}
 });

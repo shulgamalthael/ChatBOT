@@ -55,4 +55,22 @@ export class ConversationController {
 		let generalSettings = JSON.parse(cookies['wlc_gs'] || 'null');
 		return response.json(await this.conversationService.getNewConversationSession(conversationId, user, generalSettings));
 	}
+
+	@Get("/startSupportingByStaff")
+	async startConversationSupportingByStaff(@Query('conversationId') conversationId: string, @Query('staffId') staffId: string, @Request() request: IRequest) {
+		const cookies = request.cookies;
+		let generalSettings = JSON.parse(cookies['wlc_gs'] || 'null');
+		let user = JSON.parse(cookies['wlc_cud'] || cookies['wlc_gud'] || '{}');
+
+		return this.conversationService.startConversationSupportingByStaff(conversationId, staffId, user, generalSettings);
+	}
+
+	@Get("/endSupportingByStaff")
+	async endConversationSupportingByStaff(@Query('conversationId') conversationId: string, @Request() request: IRequest) {
+		const cookies = request.cookies;
+		let generalSettings = JSON.parse(cookies['wlc_gs'] || 'null');
+		let user = JSON.parse(cookies['wlc_cud'] || cookies['wlc_gud'] || '{}');
+		
+		return this.conversationService.endConversationSupportingByStaff(conversationId, user, generalSettings);
+	}
 }

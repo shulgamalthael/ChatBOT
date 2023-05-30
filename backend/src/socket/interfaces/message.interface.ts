@@ -22,4 +22,5 @@ export interface IInputMessageProps {
 	recipients: string[];
 	conversationId: string;
 	isCommandMenuOption?: boolean;
+	isConversationSupportedByStaff?: boolean;
 };

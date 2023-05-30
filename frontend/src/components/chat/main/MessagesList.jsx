@@ -115,8 +115,11 @@ const MessageBlock = ({ messagesList }) => {
 }
 
 const MessagesPagination = ({ messagesBlockRef }) => {
+	const isSubbed = useRef(false);
+	const selectedConversation = useConversationsStore((state) => state.selectedConversation);
 	const getMessagesPaginationPage = useConversationsStore((state) => state.getMessagesPaginationPage);
-	const isConversationWaitingStuff = useConversationsStore((state) => state.isConversationWaitingStuff);
+	const isConversationWaitingStaff = useConversationsStore((state) => state.isConversationWaitingStaff);
+	const messages = selectedConversation?.messages || [];
 
 	const scrollHandlerCallback = useCallback(async (e) => {
 		if(e.target.scrollTop === 0) {
@@ -128,33 +131,41 @@ const MessagesPagination = ({ messagesBlockRef }) => {
 	}, [getMessagesPaginationPage]);
 
 	useEffect(() => {
-		if(isConversationWaitingStuff && messagesBlockRef.current) {
+		if(isConversationWaitingStaff && messagesBlockRef.current) {
 			messagesBlockRef.current.scrollTop = messagesBlockRef.current?.scrollHeight || 0;
 		}
-	}, [isConversationWaitingStuff]);
+	}, [isConversationWaitingStaff]);
 	
 	useEffect(() => {
+		const _isSubbed = isSubbed.current;
 		const messageBlockElement = messagesBlockRef.current;
 
-		if(messageBlockElement) {
+		if(messageBlockElement && !messages.length && !_isSubbed) {
+			isSubbed.current = true;
+			messageBlockElement.removeEventListener("scroll", scrollHandlerCallback);
+		}
+
+		if(messageBlockElement && !!messages.length) {
+			isSubbed.current = false;
 			messageBlockElement.addEventListener("scroll", scrollHandlerCallback);
 		}
+		
 
 		return () => {
 			if(messageBlockElement) {
 				messageBlockElement.removeEventListener("scroll", scrollHandlerCallback);
 			}
 		}
-	}, [messagesBlockRef, scrollHandlerCallback]);
+	}, [messages, isSubbed, messagesBlockRef, scrollHandlerCallback]);
 
 	return <MessagesPaginationSpinner />;
 }
 
 const LiveAgentWaitingDescription = () => {
 	const responseDuration = useBotSettings((state) => state.liveAgentSettings.responseDuration);
-	const isConversationWaitingStuff = useConversationsStore((state) => state.isConversationWaitingStuff);
+	const isConversationWaitingStaff = useConversationsStore((state) => state.isConversationWaitingStaff);
 
-	if(!isConversationWaitingStuff) {
+	if(!isConversationWaitingStaff) {
 		return null;
 	}
 

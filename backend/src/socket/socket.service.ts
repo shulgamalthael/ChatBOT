@@ -25,6 +25,7 @@ import { IInputMessageProps, IOutputMessage } from './interfaces/message.interfa
 import { Connections, IConnectedUser, IUserConnection } from './interfaces/connection.interface';
 import { IGenericObjectType } from 'utils/interfaces/genericObjectType';
 import { NotificationDto } from 'src/notifications/dto/notificationDto';
+import { UserService } from 'src/user/user.service';
 
 @Injectable()
 export class SocketService {
@@ -33,6 +34,8 @@ export class SocketService {
 	constructor(
 		@Inject(forwardRef(() => BotService))
 		private readonly botService: BotService,
+		@Inject(forwardRef(() => UserService))
+		private readonly userService: UserService,
 		@Inject(forwardRef(() => ConversationService))
 		private readonly conversationService: ConversationService,
 	) {}
@@ -83,7 +86,7 @@ export class SocketService {
 		}
 
 		if (message.senderId !== user.businessId) {
-			senderData = this.getUserById(message.senderId || user._id);
+			senderData = await this.userService.getUserById(message.senderId || user._id, user); 
 		}
 
 		recipients.forEach((recipient) => {
@@ -229,9 +232,23 @@ export class SocketService {
 		const generalSettings = await this.botService.getGeneralSettings(currentUserData);
 		currentUserData.businessId = currentUserData.businessId || businessId;
 
-		const filteredRecipientsList = inputMessage.recipients.filter((recipient) => {
-			return recipient !== businessId;
-		});
+		const filteredRecipientsList = inputMessage.recipients.reduce((acc, recipient) => {
+			if(inputMessage.recipients.includes(currentUserData.businessId)) {
+				if(!inputMessage.isConversationSupportedByStaff && recipient === currentUserData._id) {
+					acc.push(recipient);
+				}
+	
+				if(inputMessage.isConversationSupportedByStaff && recipient !== currentUserData.businessId) {
+					acc.push(recipient);
+				}
+			}
+
+			if(!inputMessage.recipients.includes(currentUserData.businessId)) {
+				acc.push(recipient);
+			}
+
+			return acc;
+		}, []);
 
 		const message = {
 			text: inputMessage.text,
@@ -240,19 +257,20 @@ export class SocketService {
 			senderId: inputMessage.senderId,
 			actionType: inputMessage.actionType,
 			recipients: inputMessage.recipients,
-			isCommandMenuOption: inputMessage.isCommandMenuOption
+			isCommandMenuOption: inputMessage.isCommandMenuOption,
+			isConversationSupportedByStaff: inputMessage.isConversationSupportedByStaff,
 		};
 
 		const messageConfiguration = {
 			message, 
-			user: currentUserData,
 			generalSettings, 
-			recipients: filteredRecipientsList,
 			putToDatabase: true,
+			user: currentUserData,
+			recipients: filteredRecipientsList,
 			conversationId: inputMessage.conversationId,
 		};
 
-		if (inputMessage.recipients.includes(businessId)) {
+		if (inputMessage.recipients.includes(businessId) && !message.isConversationSupportedByStaff) {
 			await this.sendMessage(messageConfiguration);
 			return this.botService.sendMessageToBOT(message, currentUserData, inputMessage.conversationId, connection);
 		}
@@ -265,7 +283,7 @@ export class SocketService {
 	}
 
 	emitEvent(connection: Socket, eventType: string, message?: IGenericObjectType) {
-		connection.emit(eventType, message);
+		connection.emit(eventType, JSON.stringify(message));
 	}
 
 	notificateAllUsersAboutNewConnection() {
@@ -339,7 +357,7 @@ export class SocketService {
 
 	getUserById(userId: string, skipException?: boolean): IConnectedUser | null {
 		const connections = Object.values(this.connections);
-		const user = connections.find((connection) => connection.userData._id === userId);
+		let user = connections.find((connection) => connection.userData._id === userId);
 
 		if(!user && !skipException) {
 			throw new HttpException(`user ${userId} not found`, HttpStatus.NOT_FOUND);

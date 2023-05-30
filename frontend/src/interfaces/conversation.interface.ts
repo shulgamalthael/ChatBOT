@@ -21,6 +21,8 @@ export interface IConversation {
 	messages: IInputMessage[];
 	unreadedMessagesCount: number;
 	recipientsDataById: IRecipientsDataMap;
+	isConversationWaitingStaff: boolean;
+	isConversationSupportedByStaff: boolean;
 }
 
 export interface IInputMessage { 
@@ -47,4 +49,5 @@ export interface IOutputMessage {
 	recipients: string[];
 	conversationId: string;
 	isCommandMenuOption?: boolean;
+	isConversationSupportedByStaff?: boolean;
 }

@@ -9,7 +9,6 @@ import { IConnectedUser } from "src/socket/interfaces/connection.interface";
 
 /* @services */
 import { UserService } from "./user.service";
-import { BotService } from "../bot/bot.service";
 import { SocketService } from "../socket/socket.service";
 
 /* @express */
@@ -18,10 +17,20 @@ import { Request as IRequest, Response as IResponse } from "express";
 @Controller('api/user')
 export class UserController {
 	constructor(
-		private readonly botService: BotService,
 		private readonly userService: UserService,
 		private readonly socketService: SocketService,
 	) {}
+
+	@HttpCode(HttpStatus.OK)
+	@Get('/byId/:id')
+	getOnlineUser(@Param('id') id: string, @Request() request: IRequest) {
+		const cookies = request.cookies;
+
+		let user = cookies['wlc_cud'] || cookies['wlc_gud'] || '{}';
+		user = JSON.parse(user);
+
+		return this.userService.getUserById(id, user);
+	}
 
 	@HttpCode(HttpStatus.OK)
 	@Get('/list')
@@ -32,11 +41,6 @@ export class UserController {
 	@Get('/staff/list')
 	getStaffList(@Query('offset') offset: string) {
 		return this.userService.getStaffList(offset);
-	}
-
-	@Get('/user/:id')
-	getOnlineUser(@Param('id') id: string) {
-		return this.socketService.getUserById(id)
 	}
 
 	@HttpCode(HttpStatus.CREATED)

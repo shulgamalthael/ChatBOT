@@ -199,8 +199,8 @@ export class BotService {
 		};
 
 		if(message.actionType === "liveAgentTrigger") {
-			await this.conversationService.makeConversationStuffAwationById(conversationId);
-			await this.socketService.emitEvent(connection, "update/conversation", { conversationId });
+			await this.conversationService.makeConversationStaffAwationById(conversationId);
+			await this.socketService.emitEvent(connection, "conversation/update", { conversationId });
 			await sendLiveAgentDescription();
 			
 			const notificationTitle = message.recipients.reduce((acc, recipient) => {
@@ -217,7 +217,7 @@ export class BotService {
 				}
 
 				return acc;
-			}, "");
+			}, "") + " await You";
 
 			let staffList = await this.usersService.getStaffList(user);
 			staffList = staffList.filter((staff) => staff._id !== user._id);
@@ -230,6 +230,7 @@ export class BotService {
 			const notifications: NotificationDto[] = staffList.map((staff) => ({
 				to: staff._id,
 				conversationId,
+				isReaded: false,
 				staffList: staffIds,
 				isSocketAction: true,
 				from: message.senderId,

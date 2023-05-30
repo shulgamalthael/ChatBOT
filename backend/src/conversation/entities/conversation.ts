@@ -23,12 +23,15 @@ export class Conversation extends Document {
 
 	@Prop()
 	recipients: string[];
-
-	@Prop()
-	isConversationWaitingStuff?: boolean;
 	
 	@Prop()
 	messages: IOutputMessage[];
+
+	@Prop()
+	isConversationWaitingStaff: boolean;
+
+	@Prop()
+	isConversationSupportedByStaff: boolean;
 }
 
 export const ConversationSchema = SchemaFactory.createForClass(Conversation);

@@ -17,6 +17,7 @@ import { ConversationService } from "./conversation.service";
 import UserModel from "../user/entities/user";
 import ConversationModel from "./entities/conversation";
 import { MessageModel, MessagesModel } from "./entities/messages";
+import { NotificationsModule } from "../notifications/notifications.module";
 
 const injectedMongooseModels = MongooseModule.forFeature([
 	UserModel,
@@ -29,12 +30,13 @@ const conversationsModuleImports = [
 	injectedMongooseModels,
 	forwardRef(() => BotModule),
 	forwardRef(() => SocketModule),
+	forwardRef(() => NotificationsModule)
 ];
 
 @Module({
 	imports: conversationsModuleImports,
-	controllers: [ConversationController],
 	providers: [ConversationService],
-	exports: [ConversationService]
+	controllers: [ConversationController],
+	exports: [ConversationService],
 })
 export class ConversationModule {}

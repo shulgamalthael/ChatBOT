@@ -1,14 +1,23 @@
 /* @axios */
 import { request } from "./axios";
 
-/* @interfaces */
-import { IUserData } from "../stores/socket/socket";
-
 /* @constansts */
 import { defaultLimit } from "../constants/params";
+import { IGenericObjectType } from "../interfaces/genericObjectType";
 import { IConversationData } from "../interfaces/conversation.interface";
 import { ICommand, IGeneralSettings, ILiveAgentSettings, IPage } from "../stores/botSettings/botSettingsStore";
-import { IGenericObjectType } from "../interfaces/genericObjectType";
+
+export const getUserDataByIdAPI = (userId: string) => {
+	return request(`/api/user/byId/${userId}`);
+}
+
+export const startSupportingByStaffAPI = (conversationId: string, staffId: string) => {
+	return request(`/api/conversation/startSupportingByStaff?conversationId=${conversationId}&staffId=${staffId}`);
+}
+
+export const endSupportingByStaffAPI = (conversationId: string) => {
+	return request(`/api/conversation/endSupportingByStaff?conversationId=${conversationId}`);
+}
 
 export const queryNotificationsListAPI = (offset: number = 1) => {
 	return request(`/api/notifications/list?offset=${offset}`);

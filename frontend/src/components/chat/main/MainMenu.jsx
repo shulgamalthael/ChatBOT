@@ -11,6 +11,8 @@ import { useConversationsStore } from "../../../stores/conversations/conversatio
 import Avatar from "../../common/Avatar";
 import NetworkIndicator from "../../common/NetworkIndicator";
 import { useNotificationsStore } from "../../../stores/notifications/notificationsStore";
+import SaveButton from "../../common/SaveButton";
+import CancelButton from "../../common/CancelButton";
 
 const Staff = ({ staff }) => {
 	const userData = useUserStore((state) => state.userData);
@@ -165,8 +167,8 @@ const User = ({ user }) => {
 		<div onClick={UC_CreateConversation} className="chat-menu-item">
 			<div className="chat-menu-item-avatar">
 				{user.avatarUrl 
-					? <Avatar avatarUrl={user.avatarUrl} isOnline />
-				 	: <i className="chat-icon-user user-icon" />
+					? 	<Avatar avatarUrl={user.avatarUrl} isOnline />
+				 	: 	<i className="chat-icon-user user-icon" />
 				}
 				<NetworkIndicator isOnline />
 			</div>
@@ -200,14 +202,42 @@ const Settings = () => {
 	)
 }
 
+const Notification = ({ notification }) => {
+	const accept = useNotificationsStore((state) => state.acceptNotification);
+	const decline = useNotificationsStore((state) => state.declineNotification);
+
+	const acceptCallback = useCallback(() => {
+		accept(notification);
+	}, [notification, accept]);
+
+	const declineCallback = useCallback(() => {
+		decline(notification);
+	}, [notification, decline]);
+
+	return(
+		<div className="chat-menu-item flex-col">
+			<div className="flex">
+				<div className="chat-menu-item-avatar">
+					<Avatar />
+				</div>
+				<div className="chat-menu-item-name">{notification.title}</div>
+			</div>
+			<div className="flex flex-start">
+				{notification.accept && <SaveButton click={acceptCallback}>Accept</SaveButton>}
+				{notification.decline && <CancelButton click={declineCallback} skipMarginBottom>Decline</CancelButton>}
+			</div>
+		</div>
+	)
+}
+
 const NotificationsList = () => {
 	const notificationsList = useNotificationsStore((state) => state.notificationsList);
 
-	if(!Array.isArray(notificationsList) && !notificationsList.length) {
+	if(!Array.isArray(notificationsList) || !notificationsList.length) {
 		return <div className="color-primary">Notifications list is empty.</div>
 	}
 
-	return null;
+	return notificationsList.map((notification) => <Notification key={notification._id} notification={notification} />);
 }
 
 const renderTab = (tabState) => {

@@ -1,13 +1,21 @@
 import { Model } from "mongoose";
 import { InjectModel } from "@nestjs/mongoose";
 import { NotificationDto } from "./dto/notificationDto";
+import { SocketService } from "../socket/socket.service";
 import { IUser } from "../user/interfaces/user.interface";
-import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
-import NotificationsModel, { Notifications } from "./entities/notifications";
+import { ConversationService } from "../conversation/conversation.service";
+import { HttpException, HttpStatus, Inject, Injectable, forwardRef } from "@nestjs/common";
+import NotificationsModel, { INotification, Notifications } from "./entities/notifications";
 
 @Injectable()
 export class NotificationsService {
-    constructor(@InjectModel(NotificationsModel.name) private readonly notificationsModel: Model<Notifications>) {}
+    constructor(
+        @Inject(forwardRef(() => SocketService))
+        private readonly socketService: SocketService,
+        @Inject(forwardRef(() => ConversationService))
+        private readonly conversationService: ConversationService,
+        @InjectModel(NotificationsModel.name) private readonly notificationsModel: Model<Notifications>
+    ) {}
 
     async getNotificationsList(user: IUser, offset: string) {
         if(!user._id) {
@@ -51,6 +59,9 @@ export class NotificationsService {
         }
 
         const notification = await this.notificationsModel.create(notificationDto);
+
+        await this.sendNotificationBySocket(notification.to, notification);
+
         return notification.save();
     }
     
@@ -61,5 +72,73 @@ export class NotificationsService {
 
         const notification = await this.notificationsModel.findByIdAndRemove(notificationId);
         return notification.save();
+    }
+
+    async acceptNotification(notification: INotification) {
+        if(!notification._id) {
+            throw new HttpException(`Notification data is wrong! Missing \"id\" field!`, HttpStatus.BAD_REQUEST);
+        }
+
+        await this.notificationsModel.deleteMany({ conversationId: notification.conversationId, actionType: "conversationStaffAwaition" });
+        
+        return this.conversationService.connectStaffToConversation(notification.conversationId, notification.to);
+    }
+
+    async declineNotification(notification: INotification) {
+        if(!notification._id) {
+            throw new HttpException(`Notification data is wrong! Missing \"id\" field!`, HttpStatus.BAD_REQUEST);
+        }
+
+        await this.notificationsModel.deleteMany({ conversationId: notification.conversationId, actionType: "conversationStaffAwaition" });
+    }
+
+    async removeStaffAwaitionNotificationsByConversationId(conversationId: string) {
+        if(!conversationId) {
+            throw new HttpException(`Wrong conversationId: ${conversationId}!`, HttpStatus.BAD_REQUEST);
+        }
+
+        await this.notificationsModel.deleteMany({ conversationId, actionType: "conversationStaffAwaition" });
+    }
+
+    async sendNotificationsListUpdatingTrigger(userId: string) {
+        if(!userId) {
+            throw new HttpException(`Missing \"userId\" field!`, HttpStatus.BAD_REQUEST);
+        }
+
+        const userConnectionInstances = this.socketService.getAllUserConnectionInstances(userId);
+
+        const sendTrigger = async (instanceIndex: number = 0) => {
+            if(userConnectionInstances.length <= instanceIndex) {
+                return;
+            }
+
+            await this.socketService.emitEvent(userConnectionInstances[instanceIndex].connection, "notification/list/update");
+        }
+
+        await sendTrigger();
+    }
+
+    async sendNotificationBySocket(userId: string, notification: INotification) {
+        if(!userId) {
+            throw new HttpException(`Missing \"userId\" field!`, HttpStatus.BAD_REQUEST);
+        }
+
+        if(!notification._id) {
+            throw new HttpException(`Wrong \"notification\" data!`, HttpStatus.BAD_REQUEST);
+        }
+
+        const userConnectionInstances = this.socketService.getAllUserConnectionInstances(userId);
+
+        const sendNotification = async (instanceIndex: number = 0) => {
+            if(userConnectionInstances.length <= instanceIndex) {
+                return;
+            }
+
+            await this.socketService.emitEvent(userConnectionInstances[instanceIndex].connection, "user/notification", notification);
+        }
+
+        await sendNotification();
+
+        return notification;
     }
 }
