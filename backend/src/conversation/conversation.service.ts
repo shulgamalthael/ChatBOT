@@ -378,8 +378,8 @@ export class ConversationService {
 		await this.notificationsService.sendMenyNotificationsListUpdateTriggers(staffList);
 
 		return {
-			_id: filledConversation._id,
 			messages: [],
+			_id: filledConversation._id,
 			title: filledConversation.title,
 			isConversationWaitingStaff: false,
 			creator: filledConversation.creator,
@@ -425,6 +425,18 @@ export class ConversationService {
 		await this.sendUserConnectionMessage(conversation, staffData);
 
 		await this.sendUpdateConversationTriggerToRecipients(conversation);
+
+		const generalSettings = await this.botService.getGeneralSettings(staffData);
+		const liveAgentSettings = await this.botService.getLiveAgentSettings(staffData);
+
+		if(liveAgentSettings.liveChatDuration.enabled) {
+			let timer = liveAgentSettings.liveChatDuration.duration || 0;
+			timer = timer * 1000 * 60;
+
+			setTimeout(() => {
+				this.endConversationSupportingByStaff(conversation._id, staffData, generalSettings);
+			}, timer);
+		}
 
 		return true;
 	}
@@ -547,7 +559,8 @@ export class ConversationService {
 		await this.sendUserConnectionMessage(conversation, user);
 
 		if(liveAgentSettings.liveChatDuration.enabled) {
-			const timer = liveAgentSettings.liveChatDuration.duration * 1000 * 60;
+			let timer = liveAgentSettings.liveChatDuration.duration || 0;
+			timer = timer * 1000 * 60;
 
 			setTimeout(() => {
 				this.endConversationSupportingByStaff(conversation._id, user, generalSettings);
