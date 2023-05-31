@@ -136,13 +136,13 @@ export class ConversationService {
 
 				result[user.businessId] = {
 					email: "",
-					role: "staff",
+					role: "system",
 					_id: user.businessId,
 					businessId: user.businessId,
 					createdAt: new Date().toISOString(),
 					lastVisitAt: new Date().toISOString(),
-					avatarUrl: generalSettings.botAvatar || "",
-					username: generalSettings.botName || `guest#${user.businessId}`
+					avatarUrl: generalSettings.botAvatar || null,
+					username: generalSettings.botName || `Guest#${user.businessId}`
 				};
 			}
 

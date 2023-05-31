@@ -60,9 +60,9 @@
     "workbox-webpack-plugin": "^6.4.1"
   },
   "scripts": {
+    "test": "node package-scripts/test.js",
     "start": "node package-scripts/start.js",
-    "build": "node package-scripts/build.js",
-    "test": "node package-scripts/test.js"
+    "build": "cp -r .env.example .env && node package-scripts/build.js && rm -rf .env"
   },
   "eslintConfig": {
     "extends": [

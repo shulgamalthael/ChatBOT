@@ -74,19 +74,24 @@ const Conversation = ({ conversation }) => {
 
 	console.log("Conversation Rendered!");
 
-	const recipientsEntries = Object.entries(conversation.recipientsDataById);
-	const companionAvatar = recipientsEntries.reduce((acc, recipientEntries, i, recipientsEntriesInstance) => {
-		if(recipientsEntriesInstance.length === 1 && recipientEntries[0] === userData._id) {
-			acc = userData?.avatarUrl;
-			return acc;
-		}
+	console.log({ conversation });
 
-		if(userData._id !== recipientEntries[0]) {
-			acc = recipientEntries[1].avatarUrl;
-		}
+	let companionAvatar = "";
 
-		return acc;
-	}, "");
+	const recipientsDataArrayMap = Object.values(conversation.recipientsDataById);
+
+	if(conversation.isConversationWithAssistant) {
+		companionAvatar = conversation.recipientsDataById[userData.businessId].avatarUrl || "";
+	}
+
+	if(recipientsDataArrayMap.length === 1) {
+		companionAvatar = userData.avatarUrl || "";
+	}
+
+	if(conversation.recipients.length > 1 && recipientsDataArrayMap.length > 1) {
+		const recipientId = conversation.recipients.find((recipient) => recipient !== userData._id);
+		companionAvatar = conversation.recipientsDataById[recipientId].avatarUrl || "";
+	}
 
 	return(
 		<div onClick={UC_SelectConversation} className="chat-menu-item">

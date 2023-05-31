@@ -24,6 +24,10 @@ import { NotificationsService } from "../notifications/notifications.service";
 import { NotificationDto } from "../notifications/dto/notificationDto";
 import { UserService } from "../user/user.service";
 
+import { getSiteUrl } from "../../utils/scripts/getSiteUrl";
+
+const siteUrl = getSiteUrl();
+
 const isFile = (path: string): boolean => {
 	try {
 		return lstatSync(path).isFile();
@@ -52,7 +56,7 @@ interface IGeneralSettingsGenerationProps {
 const generateGeneralSettings = (generalSettings: IGeneralSettingsGenerationProps = {}) => ({
 	botName: generalSettings.botName || 'Ahill BOT',
 	enabled: generalSettings.enabled || false,
-	botAvatar: generalSettings.botAvatar || null,
+	botAvatar: generalSettings.botAvatar || `${siteUrl}/assets/avatars/assistant.jpg`,
 	showingChatTimer: generalSettings.showingChatTimer || 0,
 	messageSendingTimer: generalSettings.messageSendingTimer || 0,
 	allowPages: generalSettings.allowPages || [{
@@ -330,7 +334,7 @@ export class BotService {
 
 		const fileType = fileNameExecutedArray[1];
 		const path = `uploads/avatars/${user.businessId}/${user.businessId}.${fileType}`;
-		const avatarUrl = `https://localhost:4488/${path}`;
+		const avatarUrl = `${siteUrl}/${path}`;
 
 		if(!isDir('uploads')) {
 			mkdirSync('./uploads');

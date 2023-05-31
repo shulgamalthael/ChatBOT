@@ -13,7 +13,7 @@ import { IInputMessageProps } from './interfaces/message.interface';
 import { NotificationsService } from '../notifications/notifications.service';
 import { INotification } from 'src/notifications/entities/notifications';
 
-@WebSocketGateway({ transport: ['websocket'] })
+@WebSocketGateway({ transport: ['polling', 'websocket'] })
 export class SocketGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
 	constructor(
 		@Inject(forwardRef(() => NotificationsService))

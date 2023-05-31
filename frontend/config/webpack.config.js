@@ -1,5 +1,7 @@
 'use strict';
 
+require('dotenv').config();
+
 const fs = require('fs');
 const path = require('path');
 const webpack = require('webpack');
@@ -186,7 +188,7 @@ module.exports = function (webpackEnv) {
     return loaders;
   };
 
-  return {
+  const config = {
     target: ['browserslist'],
     // Webpack noise constrained to errors and warnings
     stats: 'errors-warnings',
@@ -563,6 +565,11 @@ module.exports = function (webpackEnv) {
       ].filter(Boolean),
     },
     plugins: [
+      new webpack.DefinePlugin({
+        API_PORT: JSON.stringify(process.env.API_PORT || ""),
+        API_HOST: JSON.stringify(process.env.API_HOST || "localhost"),
+        API_PROTOCOL: JSON.stringify(process.env.API_PROTOCOL || "https"),
+      }),
       // Generates an `index.html` file with the <script> injected.
       new HtmlWebpackPlugin(
         Object.assign(
@@ -722,34 +729,36 @@ module.exports = function (webpackEnv) {
             infrastructure: 'silent',
           },
         }),
-      !disableESLintPlugin &&
-        new ESLintPlugin({
-          // Plugin options
-          extensions: ['js', 'mjs', 'jsx', 'ts', 'tsx'],
-          formatter: require.resolve('react-dev-utils/eslintFormatter'),
-          eslintPath: require.resolve('eslint'),
-          failOnError: !(isEnvDevelopment && emitErrorsAsWarnings),
-          context: paths.appSrc,
-          cache: true,
-          cacheLocation: path.resolve(
-            paths.appNodeModules,
-            '.cache/.eslintcache'
-          ),
-          // ESLint class options
-          cwd: paths.appPath,
-          resolvePluginsRelativeTo: __dirname,
-          baseConfig: {
-            extends: [require.resolve('eslint-config-react-app/base')],
-            rules: {
-              ...(!hasJsxRuntime && {
-                'react/react-in-jsx-scope': 'error',
-              }),
-            },
-          },
-        }),
+      // !disableESLintPlugin &&
+      //   new ESLintPlugin({
+      //     // Plugin options
+      //     extensions: ['js', 'mjs', 'jsx', 'ts', 'tsx'],
+      //     formatter: require.resolve('react-dev-utils/eslintFormatter'),
+      //     eslintPath: require.resolve('eslint'),
+      //     failOnError: !(isEnvDevelopment && emitErrorsAsWarnings),
+      //     context: paths.appSrc,
+      //     cache: true,
+      //     cacheLocation: path.resolve(
+      //       paths.appNodeModules,
+      //       '.cache/.eslintcache'
+      //     ),
+      //     // ESLint class options
+      //     cwd: paths.appPath,
+      //     resolvePluginsRelativeTo: __dirname,
+      //     baseConfig: {
+      //       extends: [require.resolve('eslint-config-react-app/base')],
+      //       rules: {
+      //         ...(!hasJsxRuntime && {
+      //           'react/react-in-jsx-scope': 'error',
+      //         }),
+      //       },
+      //     },
+      //   }),
     ].filter(Boolean),
     // Turn off performance processing because we utilize
     // our own hints via the FileSizeReporter
     performance: false,
   };
+
+  return config;
 };

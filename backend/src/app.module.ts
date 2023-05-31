@@ -22,7 +22,6 @@ const staticRootPath = process.env.ENV === "PRODUCTION" ? resolve("backend", "fr
 // const mongodbserverString = process.env.ENV === "PRODUCTION" ? "user1:12345678@mongodb:27017" : "127.0.0.1:27017";
 const mongodbserverString = process.env.ENV === "PRODUCTION" ? "mongodb:27017" : "127.0.0.1:27017";
 const connectionString = `mongodb://${mongodbserverString}/ChatBOT`;
-console.log({ connectionString });
 const deployMongooseConnection = MongooseModule.forRoot(connectionString);
 const deployStaticFiles = ServeStaticModule.forRoot({ rootPath: staticRootPath });
 

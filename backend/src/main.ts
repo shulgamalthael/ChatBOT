@@ -17,12 +17,10 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 
 require("dotenv").config();
 
-const securityBedPath = process.env.ENV
+const securityBedPath = process.env.ENV === "PRODUCTION"
 	?	resolve("backend", "security")
 	:	resolve("security")
 ;
-
-const isProduction = process.env.ENV === "PRODUCTION";
 
 const certificate = readFileSync(`${securityBedPath}/localhost4488.pem`);
 const privateKey = readFileSync(`${securityBedPath}/localhost-privateKey4488.pem`);
@@ -49,6 +47,7 @@ async function bootstrap() {
 	const app = await NestFactory.create<NestExpressApplication>(AppModule, appOptions);
 	app.useGlobalPipes(validationPipe);
 	app.use(cookieParser());
+	app.useStaticAssets(resolve("assets"), { prefix: "/assets" });
 	app.useStaticAssets(resolve("uploads"), { prefix: "/uploads" });
 
 	await app.listen(4488);
