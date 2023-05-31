@@ -14,4 +14,13 @@ export class NotificationsController {
 
         return response.json(await this.notificationsService.getNotificationsList(user, offset));
     }
+
+    @Get("/read")
+    async readNotifications(@Request() request: IRequest) {
+        const cookies = request.cookies;
+		let user = cookies['wlc_cud'] || cookies['wlc_gud'] || '{}';
+		user = JSON.parse(user);
+
+        return this.notificationsService.readNotificationsByUserId(user);
+    }
 }

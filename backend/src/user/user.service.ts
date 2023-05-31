@@ -94,13 +94,23 @@ export class UserService {
 		return user.save();
 	}
 
-	async getStaffList(offset: string) {
+	async getStaffList(offset: string = "0") {
 		let correctedOffset = parseInt(offset, 1);
 		correctedOffset = correctedOffset - 1;
 		correctedOffset = !correctedOffset ? 0 : correctedOffset;
 		const limit = 25;
 
 		const staffList = await this.userModel.find({ role: 'staff' }, {}, {skip: correctedOffset * limit, limit }).exec();
+
+		if(!Array.isArray(staffList)) {
+			return [];
+		}
+
+		return staffList.map((staff) => fillUserData(staff));
+	}
+
+	async getFullStaffList() {
+		const staffList = await this.userModel.find({ role: 'staff' }).exec();
 
 		if(!Array.isArray(staffList)) {
 			return [];

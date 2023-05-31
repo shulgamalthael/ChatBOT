@@ -23,9 +23,9 @@ import { BotService } from '../bot/bot.service';
 import { ConversationService } from '../conversation/conversation.service';
 import { IInputMessageProps, IOutputMessage } from './interfaces/message.interface';
 import { Connections, IConnectedUser, IUserConnection } from './interfaces/connection.interface';
-import { IGenericObjectType } from 'utils/interfaces/genericObjectType';
-import { NotificationDto } from 'src/notifications/dto/notificationDto';
-import { UserService } from 'src/user/user.service';
+import { IGenericObjectType } from '../../utils/interfaces/genericObjectType';
+import { UserService } from '../user/user.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class SocketService {
@@ -38,6 +38,8 @@ export class SocketService {
 		private readonly userService: UserService,
 		@Inject(forwardRef(() => ConversationService))
 		private readonly conversationService: ConversationService,
+		@Inject(forwardRef(() => NotificationsService))
+		private readonly notificationService: NotificationsService,
 	) {}
 
 	private getUsersCount() {
@@ -68,26 +70,11 @@ export class SocketService {
 	}
 
 	async sendMessage(messageConfiguration) {
-		let { generalSettings } = messageConfiguration;
 		const { message, conversationId, user, recipients } = messageConfiguration;
 
-		let senderData;
 		let recipientsUserData: IConnectedUser[] = [];
 
-		if (message.senderId === user.businessId) {
-			if (!generalSettings) {
-				generalSettings = this.botService.getGeneralSettings(user) || {};
-			}
-			
-			senderData = {
-				_id: message.senderId,
-				username: generalSettings.botName || `guest#${message.senderId}`
-			}
-		}
-
-		if (message.senderId !== user.businessId) {
-			senderData = await this.userService.getUserById(message.senderId || user._id, user); 
-		}
+		const senderData = await this.userService.getUserById(message.senderId || user._id, user); 
 
 		recipients.forEach((recipient) => {
 			const connectionsMapArray = Object.values(this.connections);
@@ -278,10 +265,6 @@ export class SocketService {
 		return this.sendMessage(messageConfiguration);
 	}
 
-	async sendNotification(notification: NotificationDto, userConnection: IUserConnection) {
-		return userConnection.connection.emit("user/notification", JSON.stringify(notification));
-	}
-
 	emitEvent(connection: Socket, eventType: string, message?: IGenericObjectType) {
 		connection.emit(eventType, JSON.stringify(message));
 	}
@@ -323,6 +306,7 @@ export class SocketService {
 
 		delete this.connections[connection.id];
 		this.notificateAllUsersAboutNewDisconnection(connection.id);
+		this.notificationService.removeStaffAwaitionNotificationBySenderId(userCookieFile._id);
 		console.log('connection', `| ${userCookieFile.username} | ${connection.id} | disconnected, online: ${this.getUsersCount()}`);
 
 		return true;

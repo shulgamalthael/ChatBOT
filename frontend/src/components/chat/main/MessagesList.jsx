@@ -2,7 +2,7 @@
 import Message from "./Message";
 
 /* scripts */
-import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { useUserStore } from "../../../stores/user/user";
 import WLSpinner from "../../common/wlSpinner/WLSpinner";
 import { useConversationsStore } from "../../../stores/conversations/conversations";
@@ -100,13 +100,13 @@ const MessageBlock = ({ messagesList }) => {
 					<Message
 						message={message}
 						key={message._id}
+						isUser={message.sender._id === userData?._id}
+						isLast={messageIndex === _messagesList.length - 1}
+						hasName={message.sender._id !== _messagesList[messageIndex - 1]?.sender._id}
 						canShowMenuDescription={_messagesList[messageIndex - 1] && 
 							!_messagesList[messageIndex - 1].isCommandMenuOption &&
 							_messagesList[messageIndex].isCommandMenuOption
 						}
-						isUser={message.sender._id === userData?._id}
-						isLast={messageIndex === _messagesList.length - 1}
-						hasName={message.sender._id !== _messagesList[messageIndex - 1]?.sender._id}
 					/>
 				)
 			})}
@@ -161,13 +161,16 @@ const MessagesPagination = ({ messagesBlockRef }) => {
 	return <MessagesPaginationSpinner />;
 }
 
-const LiveAgentWaitingDescription = () => {
+const Description = () => {
+	const ref = useRef(null);
+	const scrollIntoView = useConversationsStore((state) => state.scrollIntoView);
 	const responseDuration = useBotSettings((state) => state.liveAgentSettings.responseDuration);
-	const isConversationWaitingStaff = useConversationsStore((state) => state.isConversationWaitingStaff);
 
-	if(!isConversationWaitingStaff) {
-		return null;
-	}
+	useLayoutEffect(() => {
+		if(ref.current) {
+			scrollIntoView(ref.current);
+		}
+	}, [ref]);
 
 	return(
 		<div className="flex flex-col mv-15">
@@ -177,8 +180,20 @@ const LiveAgentWaitingDescription = () => {
 				<div>Acceptable waiting time {responseDuration} mins.</div>
 			</div>
 			<WLSpinner />
-			<div></div>
+			<div ref={ref}></div>
 		</div>
+	)
+}
+
+const LiveAgentWaitingDescription = () => {
+	const isConversationWaitingStaff = useConversationsStore((state) => state.isConversationWaitingStaff);
+	
+	if(!isConversationWaitingStaff) {
+		return null;
+	}
+
+	return(
+		<Description />
 	);
 };
 

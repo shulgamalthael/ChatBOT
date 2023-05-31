@@ -13,9 +13,25 @@ import NetworkIndicator from "../../common/NetworkIndicator";
 import { useNotificationsStore } from "../../../stores/notifications/notificationsStore";
 import SaveButton from "../../common/SaveButton";
 import CancelButton from "../../common/CancelButton";
+import { readNotificationsAPI } from "../../../api/api";
 
 const Staff = ({ staff }) => {
 	const userData = useUserStore((state) => state.userData);
+	const createConversation = useConversationsStore(state => state.createConversation);
+	const toggleMainMenuVisibility = useWindows(state => state.toggleMainMenuVisibility);
+
+	const UC_CreateConversation = useCallback(async () => {
+		const conversationData = { 
+			franchiseId: "",
+			businessId: "4444",
+			recipients: [staff._id],
+		}
+
+		if(await createConversation(conversationData)) {
+			toggleMainMenuVisibility();
+		}
+
+	}, [staff._id, toggleMainMenuVisibility, createConversation]);
 
 	const userName = staff._id === userData?._id
 		?	`${staff.username} (You)`
@@ -23,7 +39,7 @@ const Staff = ({ staff }) => {
 	;
 
 	return(
-		<div className="chat-menu-item">
+		<div onClick={UC_CreateConversation} className="chat-menu-item">
 			<div className="h-25 w-25">
 				<Avatar avatarUrl={staff.avatarUrl} isOnline />
 			</div>
@@ -233,6 +249,10 @@ const Notification = ({ notification }) => {
 const NotificationsList = () => {
 	const notificationsList = useNotificationsStore((state) => state.notificationsList);
 
+	useEffect(() => {
+		readNotificationsAPI();
+	}, []);
+
 	if(!Array.isArray(notificationsList) || !notificationsList.length) {
 		return <div className="color-primary">Notifications list is empty.</div>
 	}
@@ -320,6 +340,20 @@ const UnreadedMessagesIndicator = () => {
 	)
 }
 
+const UnreadedNotificationsIndicator = () => {
+	const unreadedNotificationsCount = useNotificationsStore((state) => state.unreadedNotificationsCount);
+
+	if(!unreadedNotificationsCount) {
+		return null;
+	};
+
+	return(
+		<div className="chat-menu-item-um-indicator">
+			<div className="chat-menu-item-um-indicator-count">{unreadedNotificationsCount > 99 ? "99+" : unreadedNotificationsCount}</div>
+		</div>
+	)
+}
+
 const ConversationsButton = () => {
 	const changeMainMenuTabState = useWindows((state) => state.changeMainMenuTabState);
 
@@ -335,6 +369,21 @@ const ConversationsButton = () => {
 	);
 };
 
+const NotificationsButton = () => {
+	const changeMainMenuTabState = useWindows((state) => state.changeMainMenuTabState);
+
+	const showConversations = useCallback(() => {
+		changeMainMenuTabState(true, 'notifications');
+	}, [changeMainMenuTabState]);
+
+	return(
+		<div onClick={showConversations} className="chat-menu-item">
+			Notifications
+			<UnreadedNotificationsIndicator />
+		</div>
+	);
+}
+
 const MenuItems = () => {
 	const changeMainMenuTabState = useWindows((state) => state.changeMainMenuTabState);
 	const displayChatBOTSettings = useWindows((state) => state.displayChatBOTSettings);
@@ -347,25 +396,16 @@ const MenuItems = () => {
 		changeMainMenuTabState(true, 'usersList');
 	}, [changeMainMenuTabState]);
 
-	// const showSettings = useCallback(() => {
-	// 	changeMainMenuTabState(true, 'settings');
-	// }, [changeMainMenuTabState]);
-
-	const showNotifications = useCallback(() => {
-		changeMainMenuTabState(true, 'notifications');
-	}, [changeMainMenuTabState]);
-	
 	console.log("Main Menu Items Rendered!");
 
 	return(
 		<div className="main-menu-buffer">
 			<Tab />
 			<AssistantMenuOption />
-			<div onClick={showNotifications} className="chat-menu-item">Notifications</div>
+			<NotificationsButton />
 			<ConversationsButton />
 			<div onClick={showStaffList} className="chat-menu-item">Staff</div>
 			<div onClick={showUsersList} className="chat-menu-item">Users</div>
-			{/* <div onClick={showSettings} className="chat-menu-item">Settings</div> */}
 			<div onClick={displayChatBOTSettings} className="chat-menu-item">BOT Settings</div>
 		</div>
 	)

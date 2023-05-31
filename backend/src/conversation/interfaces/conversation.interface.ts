@@ -11,8 +11,9 @@ export interface IConversation {
 	recipients: string[];
 	messages: IOutputMessage[];
 	unreadedMessagesCount?: number;
-	isConversationWaitingStaff?: boolean;
-	isConversationSupportedByStaff?: boolean;
+	isConversationWaitingStaff: boolean;
+	isConversationWithAssistant: boolean;
+	isConversationSupportedByStaff: boolean;
 }
 
 export interface FilledConversation extends IConversation {

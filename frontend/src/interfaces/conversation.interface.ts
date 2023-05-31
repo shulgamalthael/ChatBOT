@@ -20,6 +20,7 @@ export interface IConversation {
 	conversationId: string;
 	messages: IInputMessage[];
 	unreadedMessagesCount: number;
+	isConversationWithAssistant?: boolean;
 	recipientsDataById: IRecipientsDataMap;
 	isConversationWaitingStaff: boolean;
 	isConversationSupportedByStaff: boolean;

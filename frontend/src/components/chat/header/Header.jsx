@@ -11,6 +11,7 @@ import CompanionAvatar from "../../common/CompanionAvatar";
 /* @stores */
 import { useWindows } from "../../../stores/windows/windows";
 import { useConversationsStore } from "../../../stores/conversations/conversations";
+import { useNotificationsStore } from "../../../stores/notifications/notificationsStore";
 
 const HeaderCompanionAvatar = memo(() => {
 	console.log("Header Companion Avatar Rendered!");
@@ -24,6 +25,9 @@ const HeaderCompanionAvatar = memo(() => {
 
 const UnreadedMessagesIndicator = () => {
 	const unreadedMessagesCount = useConversationsStore((state) => state.unreadedMessagesCount);
+	const unreadedNotificationsCount = useNotificationsStore((state) => state.unreadedNotificationsCount);
+
+	const count = unreadedMessagesCount + unreadedNotificationsCount;
 
 	if(!unreadedMessagesCount) {
 		return null;
@@ -32,7 +36,7 @@ const UnreadedMessagesIndicator = () => {
 	return(
 		<div style={{ position: "absolute", display: "flex", height: "17px", width: "17px", backgroundColor: "red", borderRadius: "50%", bottom: "-10px", left: "-10px" }}>
 			<div style={{ fontSize: "10px", margin: "auto" }}>
-				{unreadedMessagesCount > 99 ? "99+" : unreadedMessagesCount}
+				{count > 99 ? "99+" : count}
 			</div>
 		</div>
 	)

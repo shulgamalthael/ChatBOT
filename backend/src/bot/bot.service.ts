@@ -245,14 +245,8 @@ export class BotService {
 					return true;
 				}
 
-				const staffConnectionData = this.socketService.getConnectionByUserId(staffList[staffIndex]._id, true);
-
 				await this.notificationService.addNotificationByUserId(notifications[staffIndex], staffList[staffIndex]);
 				
-				if(staffConnectionData) {
-					await this.socketService.sendNotification(notifications[staffIndex], staffConnectionData);
-				}
-
 				return sendNotifications(staffIndex + 1);
 			}
 

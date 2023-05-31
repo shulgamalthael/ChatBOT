@@ -20,34 +20,41 @@ import { SocketService } from "../socket/socket.service";
 /* @interfaces */
 import { IUser } from "../user/interfaces/user.interface";
 import { IOutputMessage } from "src/socket/interfaces/message.interface";
-import { IConnectedUser, IUserConnection } from "../socket/interfaces/connection.interface";
+import { IConnectedUser } from "../socket/interfaces/connection.interface";
 import { FilledConversation, IConversation } from "./interfaces/conversation.interface";
 
 /* @dto */
+import { UserService } from "src/user/user.service";
 import { ConversationDto } from "./dto/conversationDto/ConversationDto";
+import { NotificationsService } from "src/notifications/notifications.service";
+import { IGeneralSettings } from "src/bot/interfaces/generalSettings.interface";
 import { FindConversationsPageByUserIdDTO } from "./dto/conversationDto/FindConversationPageByUserIdDTO";
 import { ConversationMessagesPagination } from "./dto/conversationDto/ConversationMessagesPagination";
-import { IGeneralSettings } from "src/bot/interfaces/generalSettings.interface";
-import { NotificationsService } from "src/notifications/notifications.service";
+import { ILiveAgentSettings } from "src/bot/interfaces/liveAgentSettings.interface";
 
-const generateConversation = (conversation: IConversation, user: IUser): IConversation => ({
-	_id:  conversation._id,
-	creator:  conversation.creator,
-	messages: conversation.messages,
-	createdAt:  conversation.createdAt,
-	recipients:  conversation.recipients,
-	businessId:  conversation.businessId,
-	franchiseId:  conversation.franchiseId,
-	isConversationWaitingStaff: conversation.isConversationWaitingStaff,
-	isConversationSupportedByStaff: conversation.isConversationSupportedByStaff,
-	unreadedMessagesCount: conversation.unreadedMessagesCount || conversation.messages.filter((_message) => _message.sender._id !== user._id && !_message.isReaded).length,
-});
+const generateConversation = (conversation: IConversation, user: IUser): IConversation => {
+	return {
+		_id:  conversation._id,
+		creator:  conversation.creator,
+		messages: conversation.messages,
+		createdAt:  conversation.createdAt,
+		recipients:  conversation.recipients,
+		businessId:  conversation.businessId,
+		franchiseId:  conversation.franchiseId,
+		isConversationWaitingStaff: conversation.isConversationWaitingStaff,
+		isConversationWithAssistant: conversation.isConversationWithAssistant,
+		isConversationSupportedByStaff: conversation.isConversationSupportedByStaff,
+		unreadedMessagesCount: conversation.unreadedMessagesCount || conversation.messages.filter((_message) => _message.sender._id !== user._id && !_message.isReaded).length,
+	}
+};
 
 @Injectable()
 export class ConversationService {
 	constructor(
 		@Inject(forwardRef(() => BotService))
 		private readonly botService: BotService,
+		@Inject(forwardRef(() => UserService))
+		private readonly userService: UserService,
 		@Inject(forwardRef(() => SocketService))
 		private readonly socketService: SocketService,
 		@Inject(forwardRef(() => NotificationsService))
@@ -184,9 +191,7 @@ export class ConversationService {
 	}
 
 	async getConversationsPageByUserId(queryParams: FindConversationsPageByUserIdDTO, user: IConnectedUser, generalSettings) {
-		const userId = user._id;
-
-		if(!userId) {
+		if(!user._id) {
 			throw new HttpException('missing users\'s cookie', HttpStatus.UNAUTHORIZED);
 		}
 
@@ -195,12 +200,13 @@ export class ConversationService {
 		let limit = parseInt(queryParams?.limit, 10) || 10;
 
 		let conversations = await this.conversationModel.find(
-			{ recipients: { $all: [userId] } }, 
+			{ recipients: { $all: [user._id] } }, 
 			{},
 			{ limit, skip: offset * limit }
 		).exec();
 
 		const conversationsArrayMap: IConversation[] = conversations.map((conversation) => {
+			conversation._id = JSON.parse(JSON.stringify(conversation._id));
 			const newConversation = generateConversation(conversation, user);
 
 			if(Array.isArray(newConversation.messages)) {
@@ -268,10 +274,13 @@ export class ConversationService {
 		const newConversation = {
 			messages: [],
 			creator: user._id,
+			isConversationWaitingStaff: false,
+			isConversationSupportedByStaff: false,
 			createdAt: new Date().toISOString(),
 			businessId: conversationDto.businessId,
 			franchiseId: conversationDto.franchiseId,
 			recipients: [user._id, ...conversationDto.recipients],
+			isConversationWithAssistant: conversationDto.recipients.includes(user.businessId),
 		}
 
 		conversation = await this.conversationModel.create(newConversation);
@@ -360,10 +369,13 @@ export class ConversationService {
 
 		conversation.messages = [];
 
+		const staffList = await this.userService.getFullStaffList();
+
 		const filledConversation = await this.fillConversation(conversation, user, generalSettings);
 
 		await this.notificationsService.removeStaffAwaitionNotificationsByConversationId(conversation._id);
 		await this.sendUpdateConversationTriggerToRecipients(conversation);
+		await this.notificationsService.sendMenyNotificationsListUpdateTriggers(staffList);
 
 		return {
 			_id: filledConversation._id,
@@ -396,6 +408,10 @@ export class ConversationService {
 			throw new HttpException(`Conversation #${conversationId} does not exist!`, HttpStatus.BAD_REQUEST);
 		}
 
+		if(conversation.isConversationSupportedByStaff) {
+			return false;
+		}
+
 		if(!conversation.recipients.includes(staffId)) {
 			conversation.recipients.push(staffId);
 		}
@@ -410,7 +426,7 @@ export class ConversationService {
 
 		await this.sendUpdateConversationTriggerToRecipients(conversation);
 
-		return conversation;
+		return true;
 	}
 
 	async sendUpdateConversationTriggerToRecipients(conversation: IConversation, recipientIndex: number = 0) {
@@ -511,9 +527,14 @@ export class ConversationService {
 		sendConnectionMessage();
 	}
 
-	async startConversationSupportingByStaff(conversationId: string, staffId: string, user: IUser, generalSettings: IGeneralSettings) {
+	async startConversationSupportingByStaff(conversationId: string, staffId: string, user: IUser, generalSettings: IGeneralSettings, liveAgentSettings: ILiveAgentSettings) {
+		if(!liveAgentSettings) {
+			throw new HttpException("Missing LiveAgent cookies", HttpStatus.BAD_REQUEST);
+		}
+		
 		const conversation = await this.findConversationById(conversationId, user);
 
+		conversation.isConversationWaitingStaff = false;
 		conversation.isConversationSupportedByStaff = true;
 		
 		if(!conversation.recipients.includes(staffId)) {
@@ -525,12 +546,23 @@ export class ConversationService {
 		await this.sendUpdateConversationTriggerToRecipients(conversation);
 		await this.sendUserConnectionMessage(conversation, user);
 
+		if(liveAgentSettings.liveChatDuration.enabled) {
+			const timer = liveAgentSettings.liveChatDuration.duration * 1000 * 60;
+
+			setTimeout(() => {
+				this.endConversationSupportingByStaff(conversation._id, user, generalSettings);
+			}, timer);
+		}
+
+		await this.notificationsService.removeStaffAwaitionNotificationsByConversationId(conversation._id);
+
 		return this.fillConversation(conversation, user, generalSettings);
 	}
 
 	async endConversationSupportingByStaff(conversationId: string, user: IUser, generalSettings: IGeneralSettings) {
 		const conversation = await this.findConversationById(conversationId, user);
 
+		conversation.isConversationWaitingStaff = false;
 		conversation.isConversationSupportedByStaff = false;
 		
 		await conversation.save();

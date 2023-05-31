@@ -190,9 +190,10 @@
 .message-visible {
 	position: relative;
 	cursor: pointer;
+	transition: 1s;
 	padding: 5px 15px;
 	border-radius: 15px;
-	transition: 1s;
+	width: fit-content;
 }
 
 .message-user {

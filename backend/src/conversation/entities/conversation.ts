@@ -31,6 +31,9 @@ export class Conversation extends Document {
 	isConversationWaitingStaff: boolean;
 
 	@Prop()
+	isConversationWithAssistant: boolean;
+	
+	@Prop()
 	isConversationSupportedByStaff: boolean;
 }
 

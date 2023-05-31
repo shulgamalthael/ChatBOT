@@ -7,6 +7,10 @@ import { IGenericObjectType } from "../interfaces/genericObjectType";
 import { IConversationData } from "../interfaces/conversation.interface";
 import { ICommand, IGeneralSettings, ILiveAgentSettings, IPage } from "../stores/botSettings/botSettingsStore";
 
+export const readNotificationsAPI = () => {
+	return request("/api/notifications/read");
+}
+
 export const getUserDataByIdAPI = (userId: string) => {
 	return request(`/api/user/byId/${userId}`);
 }

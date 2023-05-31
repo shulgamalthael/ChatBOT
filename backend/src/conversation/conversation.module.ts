@@ -18,6 +18,7 @@ import UserModel from "../user/entities/user";
 import ConversationModel from "./entities/conversation";
 import { MessageModel, MessagesModel } from "./entities/messages";
 import { NotificationsModule } from "../notifications/notifications.module";
+import { UserModule } from "src/user/user.module";
 
 const injectedMongooseModels = MongooseModule.forFeature([
 	UserModel,
@@ -29,6 +30,7 @@ const injectedMongooseModels = MongooseModule.forFeature([
 const conversationsModuleImports = [
 	injectedMongooseModels,
 	forwardRef(() => BotModule),
+	forwardRef(() => UserModule),
 	forwardRef(() => SocketModule),
 	forwardRef(() => NotificationsModule)
 ];

@@ -6,9 +6,11 @@ import { NotificationsService } from "./notifications.service";
 import { NotificationsController } from "./notifications.controller";
 import { ConversationModule } from "../conversation/conversation.module";
 import { SocketModule } from "src/socket/socket.module";
+import { UserModule } from "src/user/user.module";
 
 const imports = [
     forwardRef(() => BotModule),
+    forwardRef(() => UserModule),
     forwardRef(() => SocketModule),
     forwardRef(() => ConversationModule),
     MongooseModule.forFeature([NotificationsModel])

@@ -2,20 +2,22 @@
 import produce from "immer";
 import { create } from "zustand";
 import useSocketStore from "../socket/socket";
-import { queryNotificationsListAPI } from "../../api/api";
 import { useCloudStore } from "../cloud/cloud";
+import { queryNotificationsListAPI, readConversationMessagesApi, readNotificationsAPI } from "../../api/api";
+import { useWindows } from "../windows/windows";
 
 export interface INotification {
     _id: string;
+    to: string;
+    from: string;
     title: string;
     accept: string;
     decline: string;
+    isReaded: boolean;
     actionType: string;
     staffList: string[];
     conversationId: string;
     isSocketAction: boolean;
-    from: string;
-    to: string;
 }
 
 // interface INotificationCloudState {
@@ -26,10 +28,12 @@ export interface INotification {
 
 interface INotificationsStore {
     notificationsList: INotification[];
+    unreadedNotificationsCount: number;
     processNotificationsListUpdating: () => void;
-    // notificationsCloudState: INotificationCloudState;
+    calculateUnreadedNotificationsCount: () => void;
     queryNotificationsList: (offset: number) => void;
     processInputNotification: (message: string) => void;
+    // notificationsCloudState: INotificationCloudState;
     acceptNotification: (notification: INotification) => void;
     declineNotification: (notification: INotification) => void;
 }
@@ -75,11 +79,12 @@ export const useNotificationsStore = create<INotificationsStore>((set, get): INo
         }
     }
     
-    const queryNotificationsList = async (offset: number = 0) => {
+    const queryNotificationsList = async (offset: number = 1) => {
         const response = await queryNotificationsListAPI(offset);
 
         if(response.isFetched && Array.isArray(response.data)) {
             set({ notificationsList: response.data });
+            get().calculateUnreadedNotificationsCount();
         }
     }
 
@@ -89,6 +94,7 @@ export const useNotificationsStore = create<INotificationsStore>((set, get): INo
 
     const processInputNotification = (message: string): void => {
         const notification = JSON.parse(message || "null");
+
         if(!notification) {
             return;
         }
@@ -98,6 +104,24 @@ export const useNotificationsStore = create<INotificationsStore>((set, get): INo
         }));
         
         useCloudStore.getState().addCloud(notification, "notification");
+
+        if(useWindows.getState().mainMenuState.tabState.tabName === "notifications") {
+            readNotificationsAPI();
+        }
+        
+        get().calculateUnreadedNotificationsCount();
+    }
+
+    const calculateUnreadedNotificationsCount = () => {
+        set(produce((draft: INotificationsStore) => {
+            draft.unreadedNotificationsCount = draft.notificationsList.reduce((acc, notification) => {
+                if(!notification.isReaded) {
+                    acc += 1;
+                }
+                
+                return acc;
+            }, 0);
+        }));
     }
 
     // const addCloudNotification = (notification: INotification) => {
@@ -125,10 +149,12 @@ export const useNotificationsStore = create<INotificationsStore>((set, get): INo
         //     closeMessage: closeCloudNotification
         // },
         notificationsList: [],
+        unreadedNotificationsCount: 0,
         acceptNotification,
         declineNotification,
         queryNotificationsList,
         processInputNotification,
         processNotificationsListUpdating,
+        calculateUnreadedNotificationsCount,
     }
 });

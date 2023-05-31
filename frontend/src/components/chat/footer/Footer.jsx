@@ -53,7 +53,7 @@ const VolumeBlock = () => {
 
 const PowerBlock = () => {
 	const userData = useUserStore((state) => state.userData);
-	const stopBOTConversation = useConversationsStore((state) => state.stopBOTConversation);
+	// const stopBOTConversation = useConversationsStore((state) => state.stopBOTConversation);
 	const startBOTConversation = useConversationsStore((state) => state.startBOTConversation);
 	const selectedConversation = useConversationsStore((state) => state.selectedConversation);
 	const isStopped = useConversationsStore((state) => state.botConversationSettings.isStopped);
@@ -74,7 +74,8 @@ const PowerBlock = () => {
 			return endConversationSupportingByStaff();
 		}
 
-		return isStopped && selectedConversation ? startBOTConversation() : stopBOTConversation();
+		// return isStopped && selectedConversation ? startBOTConversation() : stopBOTConversation();
+		return startBOTConversation()
 	};
 
 	if(!selectedConversation || !userData || !userData?.businessId || !isBotConversation) {

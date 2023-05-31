@@ -14,6 +14,7 @@ interface MainMenuState {
 interface WindowsStore {
 	canShowChatBOTSettings: boolean;
 	mainMenuState: MainMenuState;
+	showMainMenu: () => void;
 	hideMainMenu: () => void;
 	hideChatBOTSettings: () => void;
 	displayChatBOTSettings: () => void;
@@ -28,10 +29,19 @@ export const useWindows = create<WindowsStore>((set: Function, get: Function): W
 		}));
 	}
 
-	const hideMainMenu = () => {
+	const showMainMenu = () => {
 		set(produce((draft: WindowsStore) => {
-			draft.mainMenuState.show = false;
+			draft.mainMenuState.show = true;
 		}));
+	}
+
+	const hideMainMenu = () => {
+		const isShowMainMenu = get().mainMenuState.show;
+		if(isShowMainMenu) {
+			set(produce((draft: WindowsStore) => {
+				draft.mainMenuState.show = false;
+			}));
+		}
 	}
 
 	const changeMainMenuTabState = (visibilityFlag: boolean, tabName: string) => {
@@ -62,6 +72,7 @@ export const useWindows = create<WindowsStore>((set: Function, get: Function): W
 			}
 		},
 		canShowChatBOTSettings: false,
+		showMainMenu,
 		hideMainMenu,
 		hideChatBOTSettings,
 		displayChatBOTSettings,

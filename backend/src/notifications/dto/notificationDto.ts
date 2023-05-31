@@ -25,6 +25,9 @@ export class NotificationDto {
     @IsString()
     to: string;
 
+    @IsBoolean()
+    isReaded: boolean;
+
     @IsNumber()
     staffList: string[];
 }

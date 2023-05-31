@@ -61,8 +61,9 @@ export class ConversationController {
 		const cookies = request.cookies;
 		let generalSettings = JSON.parse(cookies['wlc_gs'] || 'null');
 		let user = JSON.parse(cookies['wlc_cud'] || cookies['wlc_gud'] || '{}');
+		let liveAgentSettings = JSON.parse(cookies['wlc_las'] || 'null');
 
-		return this.conversationService.startConversationSupportingByStaff(conversationId, staffId, user, generalSettings);
+		return this.conversationService.startConversationSupportingByStaff(conversationId, staffId, user, generalSettings, liveAgentSettings);
 	}
 
 	@Get("/endSupportingByStaff")

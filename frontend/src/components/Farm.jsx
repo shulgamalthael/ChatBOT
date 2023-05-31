@@ -12,6 +12,7 @@ import { useBotSettings } from "../stores/botSettings/botSettingsStore";
 import { audioList, useSettingsStore } from "../stores/settings/settings";
 import { useConversationsStore } from "../stores/conversations/conversations";
 import { useNotificationsStore } from "../stores/notifications/notificationsStore";
+import { useWindows } from "../stores/windows/windows";
 
 const DeployingFarm = () => {
 	const isAuthorized = useSettingsStore((state) => state.isAuthorized);
@@ -36,9 +37,7 @@ const DeployingFarm = () => {
 
 const SocketFarm = () => {
 	const socket = useSocketStore((state) => state.socket);
-	const addCloud = useCloudStore((state) => state.addCloud);
 	const playAudio = useSettingsStore((state) => state.playAudio);
-	const addMessage = useConversationsStore((state) => state.addMessage);
 	const allowPagesList = useBotSettings((state) => state.allowPages.list);
 	const deployApplication = useSettingsStore((state) => state.deployApplication);
 	const queryOnlineUsersList = useUsersStore((state) => state.queryOnlineUsersList);
@@ -64,12 +63,13 @@ const SocketFarm = () => {
 		window.addEventListener("click", callback);
 	}
 
-	const processConversationUpdating = ({ conversationId }) => {
-		if(!conversationId) {
+	const processConversationUpdating = (message) => {
+		const parsedMesasge = JSON.parse(message || "null");
+		if(!parsedMesasge.conversationId) {
 			return;
 		}
 
-		queryConversationByIdAndSelectIt(conversationId, true);
+		queryConversationByIdAndSelectIt(parsedMesasge.conversationId, true);
 	}
 
 	const submitSocketEvents = () => {
@@ -157,6 +157,7 @@ const UserFarm = () => {
 const ConversationsFarm = () => {
 	const socket = useSocketStore((state) => state.socket);
 	const userData = useUserStore((state) => state.userData);
+	const hideMainMenu = useWindows((state) => state.hideMainMenu);
 	const conversations = useConversationsStore((state) => state.conversations);
 	const offset = useConversationsStore((state) => state.conversationsPaginationOffset);
 	const lockBotConversation = useConversationsStore((state) => state.lockBotConversation);
@@ -197,6 +198,10 @@ const ConversationsFarm = () => {
 	useEffect(() => {
 		updateIsConversationLockedState();
 	}, [selectedConversation, updateIsConversationLockedState]);
+
+	useEffect(() => {
+		hideMainMenu();
+	}, [selectedConversation, hideMainMenu]);
 
 	useEffect(() => {
 		const isWaitingStaff = selectedConversation?.isConversationWaitingStaff || false;
@@ -303,7 +308,7 @@ const BotSettingsFarm = () => {
 
 const NotificationsFarm = () => {
 	const queryNotificationsList = useNotificationsStore((state) => state.queryNotificationsList);
-	
+
 	useEffect(() => {
 		queryNotificationsList();
 	}, [queryNotificationsList]);

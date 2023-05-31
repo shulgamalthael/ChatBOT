@@ -495,7 +495,8 @@ export const useConversationsStore = create<ConversationsState>((set, get): Conv
 			userData?._id !== selectedConversation?.creator && 
 			selectedConversation && 
 			!selectedConversation?.isConversationWaitingStaff && 
-			!selectedConversation?.isConversationSupportedByStaff
+			!selectedConversation?.isConversationSupportedByStaff &&
+			selectedConversation?.isConversationWithAssistant
 		);
 
 		set({

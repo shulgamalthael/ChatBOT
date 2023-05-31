@@ -35,16 +35,28 @@ const Cloud: FC<ICloudProps> = ({ cloud, index }) => {
 
     const openChat = useSettingsStore((state) => state.openChat);
     const closeCloud = useCloudStore((state) => state.closeCloud);
+    const showMainMenu = useWindows((state) => state.showMainMenu);
 	const hideMainMenu = useWindows((state) => state.hideMainMenu);
+    const changeMainMenuTabState = useWindows((state) => state.changeMainMenuTabState);
     const closeAllSimilarClouds = useCloudStore((state) => state.closeAllSimilarClouds);
     const queryConversationByIdAndSelectIt = useConversationsStore((state) => state.queryConversationByIdAndSelectIt);
     
-    const messageClickHandler = useCallback(async () => {
-        await queryConversationByIdAndSelectIt(cloud.data.conversationId);
-        closeAllSimilarClouds(index);
-        hideMainMenu();
-        openChat();
-    }, [index, cloud, closeCloud, queryConversationByIdAndSelectIt]);
+    const messageClickHandler = async () => {
+        if(cloud.type === "notification") {
+            closeCloud(index);
+            openChat();
+            showMainMenu();
+            changeMainMenuTabState(true, "notifications");
+            return;
+        }
+
+        if(cloud.type === "message") {
+            await queryConversationByIdAndSelectIt(cloud.data.conversationId);
+            closeAllSimilarClouds(index);
+            hideMainMenu();
+            openChat();
+        }
+    };
 
     const close = useCallback((e: MouseEvent<HTMLElement>) => {
         e?.stopPropagation();
@@ -130,28 +142,6 @@ const Cloud: FC<ICloudProps> = ({ cloud, index }) => {
 
 const CloudList = () => {
     const cloudList = useCloudStore((state) => state.cloudList);
-
-    // const cloudList = Array(10).fill({
-    //     type: "notification",
-    //     data: {
-    //         _id: "6474aa351cc86349525b3f64",
-    //     title: "guest#9307 await You",
-    //     accept: "conversation/staff/accept",
-    //     decline: "conversation/staff/decline",
-    //     actionType: "conversationStaffAwaition",
-    //     staffList: [
-    //         "646f659167785dea3af53cb9",
-    //         "646f65bf67785dea3af53cf0",
-    //         "646f65c867785dea3af53d1c",
-    //         "646f65cf67785dea3af53d48"
-    //     ],
-    //     conversationId: "6470aa4e1dbaae42d6620e18",
-    //     isSocketAction: true,
-    //     from: "9307966241320590",
-    //     to: "646f65cf67785dea3af53d48"
-    //     }
-    // });
-
     return(
         cloudList.map((cloud, cloudIndex) => (
             <Cloud

@@ -9,7 +9,9 @@ export interface INotification {
     to: string;
     from: string;
     title: string;
+    isReaded: boolean;
     actionType: string;
+    staffList: string[];
     accept: string | null;
     decline: string | null;
     conversationId: string;
@@ -38,6 +40,9 @@ export class Notifications extends Document {
 
     @Prop()
     isSocketAction: boolean;
+
+    @Prop()
+    isReaded: boolean;
 
     @Prop()
     from: string;
