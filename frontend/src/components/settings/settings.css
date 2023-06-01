@@ -127,3 +127,21 @@
 	margin-right: auto;
 	border: 5px solid var(--primary-color);
 }
+
+.settings-showBtn {
+	width: 50px;
+	right: 30px;
+	height: 50px;
+	bottom: 30px;
+	display: flex;
+	position: fixed;
+	cursor: pointer;
+	font-weight: 700;
+	border-radius: 50%;
+	color: var(--secondary-color);
+	background-color: var(--primary-color);
+}
+
+.settings-showBtn * {
+	margin: auto;
+}

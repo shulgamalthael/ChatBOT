@@ -131,6 +131,12 @@ const MessagesPagination = ({ messagesBlockRef }) => {
 	}, [getMessagesPaginationPage]);
 
 	useEffect(() => {
+		if(selectedConversation && messagesBlockRef.current) {
+			messagesBlockRef.current.scrollTop = messagesBlockRef.current.scrollHeight;
+		}
+	}, [selectedConversation]);
+
+	useEffect(() => {
 		if(isConversationWaitingStaff && messagesBlockRef.current) {
 			messagesBlockRef.current.scrollTop = messagesBlockRef.current?.scrollHeight || 0;
 		}

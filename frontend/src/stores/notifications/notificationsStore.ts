@@ -5,6 +5,7 @@ import useSocketStore from "../socket/socket";
 import { useCloudStore } from "../cloud/cloud";
 import { queryNotificationsListAPI, readConversationMessagesApi, readNotificationsAPI } from "../../api/api";
 import { useWindows } from "../windows/windows";
+import { useUserStore } from "../user/user";
 
 export interface INotification {
     _id: string;
@@ -89,16 +90,26 @@ export const useNotificationsStore = create<INotificationsStore>((set, get): INo
     }
 
     const processNotificationsListUpdating = () => {
+        const userData = useUserStore.getState().userData;
+        const userRole = userData?.role;
+
+        if(userRole === "guest" || userRole === "user") {
+            return;
+        }
+
         queryNotificationsList();
     }
 
     const processInputNotification = (message: string): void => {
         const notification = JSON.parse(message || "null");
 
-        if(!notification) {
+        const userData = useUserStore.getState().userData;
+        const userRole = userData?.role;
+
+        if(!notification || userRole === "guest" || userRole === "user") {
             return;
         }
-        
+
         set(produce((draft) => {
             draft.notificationsList.push(notification);
         }));

@@ -10,12 +10,11 @@ import { Model } from "mongoose";
 import { UserDto } from "./dto/user.dto";
 
 /* @scripts */
+import { BotService } from "src/bot/bot.service";
+import { IUser } from "./interfaces/user.interface";
 import { spawnGuest } from "../../utils/scripts/spawner";
 import { SocketService } from "../socket/socket.service";
 import { fillUserData } from "../../utils/scripts/fillUserData";
-import { IGenericObjectType } from "utils/interfaces/genericObjectType";
-import { BotService } from "src/bot/bot.service";
-import { IUser } from "./interfaces/user.interface";
 
 @Injectable()
 export class UserService {
@@ -27,34 +26,47 @@ export class UserService {
 		private readonly botService: BotService,
 	) {}
 
-	async getUserById(userId: string, user: IUser) {
-		let userData: IGenericObjectType = this.socketService.getUserById(userId, true);
-
+	async getUserById(userId: string, user: IUser, skipException: boolean = false) {
 		if(userId === user.businessId) {
-			userData = await this.botService.getGeneralSettings(user);
+			const generalSettings = await this.botService.getGeneralSettings(user);
 
 			return {
 				email: "",
 				_id: userId,
 				role: "system",
+				isOnline: true,
 				businessId: userId,
-				username: userData.botName,
-				avatarUrl: userData.avatarUrl,
 				created: new Date().toISOString(),
 				lastVisit: new Date().toISOString(),
+				username: generalSettings.botName,
+				avatarUrl: generalSettings.botAvatar,
 			}
 		}
 
+		const onlineUsersList = this.socketService.getUsersList();
+		const userDataDocument = this.socketService.getUserById(userId, true);
+		let userData: IUser;
+
+		if(userDataDocument) {
+			userData = fillUserData(userDataDocument);
+		}
+
 		if(userData) {
-			return userData;
+			userData.isOnline = !!onlineUsersList.find((user) => user._id === userData._id);
+			return fillUserData(userData);
 		}
 
 		try {
 			userData = await this.userModel.findById(userId).exec();
 		} catch {}
 
-		if(!userData) {
+		if(!userData && !skipException) {
 			throw new HttpException(`User #${userId} does not found!`, HttpStatus.BAD_REQUEST)
+		}
+
+		if(userData) {
+			userData = fillUserData(userData);
+			userData.isOnline = !!onlineUsersList.find((user) => user._id === userData._id);
 		}
 
 		return userData;
@@ -94,28 +106,111 @@ export class UserService {
 		return user.save();
 	}
 
-	async getStaffList(offset: string = "0") {
-		let correctedOffset = parseInt(offset, 1);
-		correctedOffset = correctedOffset - 1;
-		correctedOffset = !correctedOffset ? 0 : correctedOffset;
+	async getStaffList(offset: string = "0", withPagination: boolean = true): Promise<IUser[]> {
 		const limit = 25;
+		let paginationOffset = parseInt(offset, 1);
+		paginationOffset = paginationOffset - 1;
+		paginationOffset = paginationOffset || 0;
 
-		const staffList = await this.userModel.find({ role: 'staff' }, {}, {skip: correctedOffset * limit, limit }).exec();
+		const paginationConfig = (config) => withPagination
+			?	config
+			:	{}
+		;
 
-		if(!Array.isArray(staffList)) {
-			return [];
+		let onlineUsersList = this.socketService.getUsersList();
+		const filledOnlineUsersList = onlineUsersList
+			.filter((user) => user.role === "staff")
+			.slice(paginationOffset * limit, limit)
+			.map((user) => fillUserData(user))
+		;
+
+		console.log({ onlineUsersList, filledOnlineUsersList });
+
+		let result = [...filledOnlineUsersList];
+
+		const extractUserData = async (index: number = 0) => {
+			const nextLimit = limit - result.length;
+			
+			if(nextLimit > 0) {
+				const usersList = await this.userModel.find({ role: "staff" }, {}, paginationConfig({ skip: paginationOffset * nextLimit, limit: nextLimit })).exec();
+
+				const filledUsersList = usersList.map((user) => fillUserData(user));
+				
+				const usersMap = result.concat(filledUsersList).reduce((acc, user) => {
+					if(!acc[user._id]) {
+						acc[user._id] = user;
+					}
+
+					return acc;
+				}, {});
+
+				result = Object.values(usersMap);
+
+				if(limit - result.length > 0 && !!usersList.length && withPagination) {
+					paginationOffset += 1;
+					return extractUserData(index + 1);
+				}
+			}
+
+			return result.map((user) => {
+				user.isOnline = !!onlineUsersList.find((_user) => _user._id === user._id);
+
+				return user;
+			});
 		}
 
-		return staffList.map((staff) => fillUserData(staff));
+		return extractUserData();
 	}
 
 	async getFullStaffList() {
-		const staffList = await this.userModel.find({ role: 'staff' }).exec();
+		return this.getStaffList("0", false);
+	}
 
-		if(!Array.isArray(staffList)) {
-			return [];
+	async getUsersList(offset: string) {
+		const limit = 25;
+		let paginationOffset = parseInt(offset, 10);
+		paginationOffset = paginationOffset - 1;
+		paginationOffset = paginationOffset || 0;
+
+		let onlineUsersList = this.socketService.getUsersList();
+		
+		const filledOnlineUsersList: IUser[] = onlineUsersList.map((user: IUser) => {
+			user.isOnline = !!onlineUsersList.find((_user) => _user._id === user._id);
+
+			return fillUserData(user);
+		});
+
+		let result = [...filledOnlineUsersList];
+		result.map((user) => fillUserData(user));
+
+		const extractUserData = async (index: number = 0) => {
+			const nextLimit = limit - result.length;
+			const usersList = await this.userModel.find({}, {}, { skip: paginationOffset * nextLimit, limit: nextLimit }).exec();
+
+			const filledUsersList = usersList.map((user) => fillUserData(user));
+			
+			const usersMap = result.concat(filledUsersList).reduce((acc, user) => {
+				if(!acc[user._id]) {
+					acc[user._id] = user;
+				}
+
+				return acc;
+			}, {});
+
+			result = Object.values(usersMap);
+
+			if(limit - result.length > 0 && !!usersList.length) {
+				paginationOffset += 1;
+				return extractUserData(index + 1);
+			}
+
+			return result.map((user) => {
+				user.isOnline = !!onlineUsersList.find((_user) => _user._id === user._id);
+
+				return user;
+			});
 		}
 
-		return staffList.map((staff) => fillUserData(staff));
+		return extractUserData();
 	}
 }

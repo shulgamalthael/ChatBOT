@@ -1,5 +1,5 @@
 /* @nest.js */
-import { Module } from '@nestjs/common';
+import { Module, NestModule, RequestMethod, MiddlewareConsumer } from '@nestjs/common';
 import { ServeStaticModule } from '@nestjs/serve-static';
 
 /* @path */
@@ -17,6 +17,7 @@ import { SocketModule } from './socket/socket.module';
 import { MulterModule } from '@nestjs/platform-express';
 import { ConversationModule } from './conversation/conversation.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { AuthorizationMiddleware } from './middlewares/authorization.middleware';
 
 const staticRootPath = process.env.ENV === "PRODUCTION" ? resolve("backend", "frontend_build") : resolve("frontend_build");
 // const mongodbserverString = process.env.ENV === "PRODUCTION" ? "user1:12345678@mongodb:27017" : "127.0.0.1:27017";
@@ -43,4 +44,11 @@ const appImports = [
 	providers: [],
 	exports: [ConversationModule, NotificationsModule, SocketModule, BotModule, ConfigModule],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+	configure(consumer: MiddlewareConsumer) {
+		consumer
+			.apply(AuthorizationMiddleware)
+			.forRoutes({ path: "*", method: RequestMethod.ALL })
+		;
+	}
+}

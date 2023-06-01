@@ -223,13 +223,11 @@ export class BotService {
 				return acc;
 			}, "") + " await You";
 
-			let staffList = await this.usersService.getStaffList(user);
-			staffList = staffList.filter((staff) => staff._id !== user._id);
-			
-			const staffIds = staffList.reduce((acc, staff) => {
-				acc.push(staff._id);
-				return acc;
-			}, []);
+			const staffList = await this.usersService.getStaffList("0", false);
+
+			const staffIds = staffList
+			.filter((staff) => staff._id !== user._id)
+			.map((staff) => staff._id);
 
 			const notifications: NotificationDto[] = staffList.map((staff) => ({
 				to: staff._id,

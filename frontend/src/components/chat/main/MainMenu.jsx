@@ -14,11 +14,12 @@ import { useNotificationsStore } from "../../../stores/notifications/notificatio
 import SaveButton from "../../common/SaveButton";
 import CancelButton from "../../common/CancelButton";
 import { readNotificationsAPI } from "../../../api/api";
+import { getUserStatus } from "../../../scripts/getUserStatus";
 
 const Staff = ({ staff }) => {
 	const userData = useUserStore((state) => state.userData);
+	const hideMainMenu = useWindows(state => state.hideMainMenu);
 	const createConversation = useConversationsStore(state => state.createConversation);
-	const toggleMainMenuVisibility = useWindows(state => state.toggleMainMenuVisibility);
 
 	const UC_CreateConversation = useCallback(async () => {
 		const conversationData = { 
@@ -27,11 +28,13 @@ const Staff = ({ staff }) => {
 			recipients: [staff._id],
 		}
 
-		if(await createConversation(conversationData)) {
-			toggleMainMenuVisibility();
+		const isConversationCreated = await createConversation(conversationData);
+
+		if(isConversationCreated) {
+			hideMainMenu();
 		}
 
-	}, [staff._id, toggleMainMenuVisibility, createConversation]);
+	}, [staff._id, hideMainMenu, createConversation]);
 
 	const userName = staff._id === userData?._id
 		?	`${staff.username} (You)`
@@ -41,7 +44,7 @@ const Staff = ({ staff }) => {
 	return(
 		<div onClick={UC_CreateConversation} className="chat-menu-item">
 			<div className="h-25 w-25">
-				<Avatar avatarUrl={staff.avatarUrl} isOnline />
+				<Avatar avatarUrl={staff.avatarUrl} isOnline={staff.isOnline} />
 			</div>
 			<div className="chat-menu-item-name">{userName}</div>
 		</div>
@@ -61,42 +64,24 @@ const StaffList = () => {
 
 /* make unique for everything application */
 const Conversation = ({ conversation }) => {
-	const userData = useUserStore((state) => state.userData);
 	const lastMessage = conversation.messages[conversation.messages.length - 1];
 	const selectConversation = useConversationsStore(state => state.selectConversation);
-	const toggleMainMenuVisibility = useWindows(state => state.toggleMainMenuVisibility);
+	const hideMainMenu = useWindows(state => state.hideMainMenu);
 
 	const UC_SelectConversation = useCallback(() => {
 		if(selectConversation(conversation)) {
-			toggleMainMenuVisibility();
+			hideMainMenu();
 		};
-	}, [conversation, selectConversation, toggleMainMenuVisibility]);
+	}, [conversation, selectConversation, hideMainMenu]);
 
 	console.log("Conversation Rendered!");
 
-	console.log({ conversation });
-
-	let companionAvatar = "";
-
-	const recipientsDataArrayMap = Object.values(conversation.recipientsDataById);
-
-	if(conversation.isConversationWithAssistant) {
-		companionAvatar = conversation.recipientsDataById[userData.businessId].avatarUrl || "";
-	}
-
-	if(recipientsDataArrayMap.length === 1) {
-		companionAvatar = userData.avatarUrl || "";
-	}
-
-	if(conversation.recipients.length > 1 && recipientsDataArrayMap.length > 1) {
-		const recipientId = conversation.recipients.find((recipient) => recipient !== userData._id);
-		companionAvatar = conversation.recipientsDataById[recipientId].avatarUrl || "";
-	}
+	const { avatarUrl, isOnline } = getUserStatus(conversation);
 
 	return(
 		<div onClick={UC_SelectConversation} className="chat-menu-item">
 			<div className="h-25 w-25 m-auto">
-				<Avatar avatarUrl={companionAvatar} />
+				<Avatar avatarUrl={avatarUrl} isOnline={isOnline} />
 			</div>
 			{lastMessage && 
 				<div className="chat-menu-item-flexCol">
@@ -158,7 +143,7 @@ const User = ({ user }) => {
 	const userAvatarRef = useRef(null);
 	const userData = useUserStore((state) => state.userData);
 	const createConversation = useConversationsStore(state => state.createConversation);
-	const toggleMainMenuVisibility = useWindows(state => state.toggleMainMenuVisibility);
+	const hideMainMenu = useWindows(state => state.hideMainMenu);
 
 	const UC_CreateConversation = useCallback(async () => {
 		const conversationData = { 
@@ -168,10 +153,10 @@ const User = ({ user }) => {
 		}
 
 		if(await createConversation(conversationData)) {
-			toggleMainMenuVisibility();
+			hideMainMenu();
 		}
 
-	}, [user._id, toggleMainMenuVisibility, createConversation]);
+	}, [user._id, hideMainMenu, createConversation]);
 
 	useLayoutEffect(() => {
 		if(userAvatarRef.current && user.avatarUrl) {
@@ -187,11 +172,7 @@ const User = ({ user }) => {
 	return(
 		<div onClick={UC_CreateConversation} className="chat-menu-item">
 			<div className="chat-menu-item-avatar">
-				{user.avatarUrl 
-					? 	<Avatar avatarUrl={user.avatarUrl} isOnline />
-				 	: 	<i className="chat-icon-user user-icon" />
-				}
-				<NetworkIndicator isOnline />
+				<Avatar avatarUrl={user.avatarUrl} isOnline={user.isOnline} />
 			</div>
 			<div className="chat-menu-item-name">{userName}</div>
 		</div>
@@ -390,8 +371,8 @@ const NotificationsButton = () => {
 }
 
 const MenuItems = () => {
+	const showChatBOTSettings = useWindows((state) => state.showChatBOTSettings);
 	const changeMainMenuTabState = useWindows((state) => state.changeMainMenuTabState);
-	const displayChatBOTSettings = useWindows((state) => state.displayChatBOTSettings);
 
 	const showStaffList = useCallback(() => {
 		changeMainMenuTabState(true, 'staffList');
@@ -411,7 +392,7 @@ const MenuItems = () => {
 			<ConversationsButton />
 			<div onClick={showStaffList} className="chat-menu-item">Staff</div>
 			<div onClick={showUsersList} className="chat-menu-item">Users</div>
-			<div onClick={displayChatBOTSettings} className="chat-menu-item">BOT Settings</div>
+			<div onClick={showChatBOTSettings} className="chat-menu-item">BOT Settings</div>
 		</div>
 	)
 }

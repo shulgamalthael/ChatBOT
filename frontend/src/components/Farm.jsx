@@ -7,7 +7,6 @@ import { useLocation } from "react-router-dom";
 import { useUserStore } from "../stores/user/user";
 import useSocketStore from "../stores/socket/socket";
 import { useUsersStore } from "../stores/users/users";
-import { useCloudStore } from "../stores/cloud/cloud";
 import { useBotSettings } from "../stores/botSettings/botSettingsStore";
 import { audioList, useSettingsStore } from "../stores/settings/settings";
 import { useConversationsStore } from "../stores/conversations/conversations";
@@ -17,18 +16,25 @@ import { useWindows } from "../stores/windows/windows";
 const DeployingFarm = () => {
 	const isAuthorized = useSettingsStore((state) => state.isAuthorized);
 	const generalSettings = useBotSettings((state) => state.generalSettings);
+	const isEnabled = useBotSettings((state) => state.generalSettings.enabled);
 	const deployApplication = useSettingsStore(state => state.deployApplication);
+	const collapseApplication = useSettingsStore((state) => state.collapseApplication);
 	const isGeneralSettingsFetched = useBotSettings((state) => state.isGeneralSettingsFetched);
 
 	useEffect(() => {
-		const isValid = isAuthorized && isGeneralSettingsFetched;
+		const isValid = isAuthorized && isGeneralSettingsFetched && isEnabled;
+		
+		if(!isValid) {
+			collapseApplication();
+		}
+
 		if(isValid) {
 			const timer = generalSettings.showingChatTimer * 1000;
 			setTimeout(() => {
 				deployApplication();
 			}, timer);
 		}
-	}, [isAuthorized, isGeneralSettingsFetched]);
+	}, [isEnabled, isAuthorized, isGeneralSettingsFetched]);
 
 	console.log("Deploying Farm Rendered!");
 
@@ -125,11 +131,11 @@ const UsersFarm = () => {
 	const queryOnlineUsersList = useUsersStore((state) => state.queryOnlineUsersList);
 
 	console.log("Users's Farm Rendered!");
-
+	
 	useEffect(() => {
 		queryStaffList();
 	}, [queryStaffList]);
-
+	
 	useEffect(() => {
 		queryOnlineUsersList();
 	}, [queryOnlineUsersList]);
@@ -334,6 +340,8 @@ const AuthorizedPart = () => {
 
 	return(
 		<React.Fragment>
+			<LiveAgentFarm />
+			<BotSettingsFarm />
 			<GeneralSettingsFarm />
 		</React.Fragment>
 	)
@@ -352,8 +360,6 @@ const DeployedPart = () => {
 			<UsersFarm />
 			<SocketFarm />
 			<CompanionFarm />
-			<LiveAgentFarm />
-			<BotSettingsFarm />
 			<ConversationsFarm />
 			<NotificationsFarm />
 		</React.Fragment>

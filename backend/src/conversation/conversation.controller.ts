@@ -11,67 +11,76 @@ import { Request as IRequest, Response as IResponse } from 'express';
 import { ConversationDto } from './dto/conversationDto/ConversationDto';
 import { FindConversationsPageByUserIdDTO } from './dto/conversationDto/FindConversationPageByUserIdDTO';
 import { ConversationMessagesPagination } from './dto/conversationDto/ConversationMessagesPagination';
+import { Cookies, UserCookies } from 'utils/decorators/Cookie';
+import { IUser } from 'src/user/interfaces/user.interface';
+import { IGeneralSettings } from 'src/bot/interfaces/generalSettings.interface';
+import { ILiveAgentSettings } from 'src/bot/interfaces/liveAgentSettings.interface';
 
 @Controller('api/conversation')
 export class ConversationController {
 	constructor(private readonly conversationService: ConversationService) {}
 	@HttpCode(HttpStatus.OK)
 	@Get('/id/:id')
-	getConversationById(@Param('id') id: string, @Query() queryParams: ConversationMessagesPagination, @Request() request: IRequest) {
-		const cookies = request.cookies;
-		let user = JSON.parse(cookies['wlc_cud'] || cookies['wlc_gud'] || '{}');
-		let generalSettings = JSON.parse(cookies['wlc_gs'] || '{}');
+	getConversationById(
+		@Param('id') id: string, 
+		@UserCookies() user: IUser,
+		@Cookies('wlc_gs') generalSettings: IGeneralSettings,
+		@Query() queryParams: ConversationMessagesPagination, 
+	) {
 		return this.conversationService.getConversationById(id, user, queryParams, generalSettings);
 	}
 
 	@HttpCode(HttpStatus.OK)
 	@Get('/list')
-	async getConversationsPageByUserId(@Query() queryParams: FindConversationsPageByUserIdDTO, @Request() request: IRequest) {
-		const cookies = request.cookies;
-		let user = JSON.parse(cookies['wlc_cud'] || cookies['wlc_gud'] || '{}');
-		let generalSettings = JSON.parse(cookies['wlc_gs'] || '{}');
-		return await this.conversationService.getConversationsPageByUserId(queryParams, user, generalSettings);
+	async getConversationsPageByUserId(
+		@UserCookies() user: IUser,
+		@Query() queryParams: FindConversationsPageByUserIdDTO, 
+	) {
+		return this.conversationService.getConversationsPageByUserId(queryParams, user);
 	}
 
 	@Get('/read/:id')
-	async readConversationMessages(@Param('id') conversationId: string, @Request() request: IRequest) {
-		const cookies = request.cookies;
-		let user = JSON.parse(cookies['wlc_cud'] || cookies['wlc_gud'] || '{}');
-		return await this.conversationService.readConversationMessages(conversationId, user);
+	async readConversationMessages(
+		@UserCookies() user: IUser,
+		@Param('id') conversationId: string, 
+	) {
+		return this.conversationService.readConversationMessages(conversationId, user);
 	}
 
 	@Post('/create')
-	async createConversation(@Body() conversationDto: ConversationDto, @Request() request: IRequest, @Response() response: IResponse) {
-		const cookies = request.cookies;
-		let user = JSON.parse(cookies['wlc_cud'] || cookies['wlc_gud'] || '{}');
-		let generalSettings = JSON.parse(cookies['wlc_gs'] || 'null');
-		return await this.conversationService.createConversation(conversationDto, user, generalSettings, response);
+	async createConversation(
+		@UserCookies() user: IUser,
+		@Body() conversationDto: ConversationDto, 
+	) {
+		return this.conversationService.createConversation(conversationDto, user);
 	}
 
 	@Get("/newConversationSession")
-	async refreshConversation(@Query('id') conversationId: string, @Request() request: IRequest, @Response() response: IResponse) {
-		const cookies = request.cookies;
-		let user = JSON.parse(cookies['wlc_cud'] || cookies['wlc_gud'] || '{}');
-		let generalSettings = JSON.parse(cookies['wlc_gs'] || 'null');
-		return response.json(await this.conversationService.getNewConversationSession(conversationId, user, generalSettings));
+	async refreshConversation(
+		@UserCookies() user: IUser,
+		@Query('id') conversationId: string,
+		@Cookies('wlc_gs') generalSettings: IGeneralSettings,
+	) {
+		return this.conversationService.getNewConversationSession(conversationId, user, generalSettings);
 	}
 
 	@Get("/startSupportingByStaff")
-	async startConversationSupportingByStaff(@Query('conversationId') conversationId: string, @Query('staffId') staffId: string, @Request() request: IRequest) {
-		const cookies = request.cookies;
-		let generalSettings = JSON.parse(cookies['wlc_gs'] || 'null');
-		let user = JSON.parse(cookies['wlc_cud'] || cookies['wlc_gud'] || '{}');
-		let liveAgentSettings = JSON.parse(cookies['wlc_las'] || 'null');
-
+	async startConversationSupportingByStaff(
+		@UserCookies() user: IUser,
+		@Query('staffId') staffId: string,
+		@Query('conversationId') conversationId: string, 
+		@Cookies('wlc_gs') generalSettings: IGeneralSettings,
+		@Cookies('wlc_las') liveAgentSettings: ILiveAgentSettings,
+	) {
 		return this.conversationService.startConversationSupportingByStaff(conversationId, staffId, user, generalSettings, liveAgentSettings);
 	}
 
 	@Get("/endSupportingByStaff")
-	async endConversationSupportingByStaff(@Query('conversationId') conversationId: string, @Request() request: IRequest) {
-		const cookies = request.cookies;
-		let generalSettings = JSON.parse(cookies['wlc_gs'] || 'null');
-		let user = JSON.parse(cookies['wlc_cud'] || cookies['wlc_gud'] || '{}');
-		
+	async endConversationSupportingByStaff(
+		@UserCookies() user: IUser,
+		@Query('conversationId') conversationId: string, 
+		@Cookies('wlc_gs') generalSettings: IGeneralSettings,
+	) {
 		return this.conversationService.endConversationSupportingByStaff(conversationId, user, generalSettings);
 	}
 }

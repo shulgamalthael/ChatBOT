@@ -6,5 +6,6 @@ export interface IUser {
 	avatarUrl: string;
 	createdAt: string;
 	businessId: string;
+	isOnline?: boolean;
 	lastVisitAt: string;
 }

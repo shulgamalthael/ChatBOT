@@ -10,6 +10,7 @@ export interface IUserData {
 	role: string;
 	email: string;
 	username: string;
+	isOnline: boolean;
 	avatarUrl: string;
 	createdAt: string;
 	businessId: string;

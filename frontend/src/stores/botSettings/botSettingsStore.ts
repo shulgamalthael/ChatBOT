@@ -435,15 +435,14 @@ export const useBotSettings = create<IBotSettingsState>((set, get): IBotSettings
 	}
 
 	const checkPageAccess = (pathname: string) => {
-		const regExp = new RegExp(pathname, "i");
 		const allowPagesList = get().allowPages.list;
-		console.log({ reg: new RegExp(pathname, "i"), pathname, allowPagesList });
+
 		const page = allowPagesList.find((page) => {
 			if(pathname === "/" && pathname === page.title && page.isChecked) {
 				return true;
 			}
 
-			if(pathname !== "/" && regExp.test(page.title) && page.isChecked) {
+			if(pathname !== "/" && page.title !== "/" && pathname.includes(page.title) && page.isChecked) {
 				return true;
 			}
 

@@ -26,6 +26,7 @@ import { Connections, IConnectedUser, IUserConnection } from './interfaces/conne
 import { IGenericObjectType } from '../../utils/interfaces/genericObjectType';
 import { UserService } from '../user/user.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { Connection } from 'mongoose';
 
 @Injectable()
 export class SocketService {

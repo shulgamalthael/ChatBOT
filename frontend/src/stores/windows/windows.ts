@@ -17,7 +17,7 @@ interface WindowsStore {
 	showMainMenu: () => void;
 	hideMainMenu: () => void;
 	hideChatBOTSettings: () => void;
-	displayChatBOTSettings: () => void;
+	showChatBOTSettings: () => void;
 	toggleMainMenuVisibility: () => void;
 	changeMainMenuTabState: (visibilityFlag: boolean, tabName: string) => void;
 }
@@ -51,7 +51,7 @@ export const useWindows = create<WindowsStore>((set: Function, get: Function): W
 		}));
 	}
 
-	const displayChatBOTSettings = () => {
+	const showChatBOTSettings = () => {
 		set(produce((draft: WindowsStore) => {
 			draft.canShowChatBOTSettings = true;
 		}));
@@ -75,7 +75,7 @@ export const useWindows = create<WindowsStore>((set: Function, get: Function): W
 		showMainMenu,
 		hideMainMenu,
 		hideChatBOTSettings,
-		displayChatBOTSettings,
+		showChatBOTSettings,
 		changeMainMenuTabState,
 		toggleMainMenuVisibility,
 	}

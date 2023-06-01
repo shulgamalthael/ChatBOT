@@ -1,22 +1,24 @@
 /* components */
-import { useConversationsStore } from "../../stores/conversations/conversations";
-import { useUserStore } from "../../stores/user/user";
 import Avatar from "./Avatar";
-import BOTAvatar from "./BOTAvatar";
+
+/* @scripts */
+import { getUserStatus } from "../../scripts/getUserStatus";
+
+/* @stores */
+import { useConversationsStore } from "../../stores/conversations/conversations";
 
 const CompanionAvatar = () => {
-	const userData = useUserStore((state) => state.userData);
 	const selectedConversation = useConversationsStore((state) => state.selectedConversation);
 
-	const recipientId = selectedConversation?.recipients?.find((recipient) => recipient !== userData?._id);
-	const recipient = selectedConversation?.recipientsDataById?.[recipientId];
-	const avatarUrl = recipient?.avatarUrl;
+	if(!selectedConversation) {
+		return null;
+	}
 
-	const isBOT = recipientId === userData?.businessId;
+	const { avatarUrl, isOnline } = getUserStatus(selectedConversation);
 
 	console.log("Companion Avatar Rendered!");
 	
-	return isBOT ? <BOTAvatar /> : <Avatar avatarUrl={avatarUrl} isOnline />;
+	return <Avatar avatarUrl={avatarUrl} isOnline={isOnline} />;
 }
 
 export default CompanionAvatar;

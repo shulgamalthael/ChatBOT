@@ -4,38 +4,55 @@ import { Controller, Post, Get, Body, Res, Request, HttpCode, HttpStatus, Param,
 /* @dto */
 import { UserDto } from "./dto/user.dto";
 
-/* @interfaces */
-import { IConnectedUser } from "src/socket/interfaces/connection.interface";
-
 /* @services */
 import { UserService } from "./user.service";
-import { SocketService } from "../socket/socket.service";
 
 /* @express */
 import { Request as IRequest, Response as IResponse } from "express";
+import { generateId } from "utils/scripts/spawner";
+import { IUser } from "./interfaces/user.interface";
+import { Cookies, UserCookies } from "utils/decorators/Cookie";
+
+const spawnStaff = (response: IResponse) => {
+	const _id = generateId();
+	const username = `guest#${_id.slice(0, 4)}`;
+
+	const data = {
+		_id,
+		username,
+		role: "staff",
+		avatarUrl: null,
+		businessId: "4444",
+		email: `${username}@example.com`,
+		createdAt: "2023-05-25T13:42:39.606Z",
+		lastVisitAt: "2023-05-25T13:42:39.606Z",
+	}
+
+	response.clearCookie('wlc_gud');
+	response.clearCookie('wlc_cud');
+	response.clearCookie('wlc_src');
+	
+	response.cookie('wlc_bid', JSON.stringify(4444));
+	response.cookie('wlc_cud', JSON.stringify(data));
+	response.cookie('wlc_src', JSON.stringify(btoa("staff")));
+
+	return response.json(data);
+}
 
 @Controller('api/user')
 export class UserController {
-	constructor(
-		private readonly userService: UserService,
-		private readonly socketService: SocketService,
-	) {}
+	constructor(private readonly userService: UserService) {}
 
 	@HttpCode(HttpStatus.OK)
 	@Get('/byId/:id')
-	getOnlineUser(@Param('id') id: string, @Request() request: IRequest) {
-		const cookies = request.cookies;
-
-		let user = cookies['wlc_cud'] || cookies['wlc_gud'] || '{}';
-		user = JSON.parse(user);
-
+	getOnlineUser(@Param('id') id: string, @UserCookies() user: IUser) {
 		return this.userService.getUserById(id, user);
 	}
 
 	@HttpCode(HttpStatus.OK)
 	@Get('/list')
-	getOnlineUsersList(): IConnectedUser[] {
-		return this.socketService.getUsersList();
+	getOnlineUsersList(@Query('offset') offset: string) {
+		return this.userService.getUsersList(offset);
 	}
 
 	@Get('/staff/list')
@@ -45,39 +62,53 @@ export class UserController {
 
 	@HttpCode(HttpStatus.CREATED)
 	@Post('/authorization')
-	async processUserAuthorization(@Request() request: IRequest, @Res() response: IResponse, @Body() userDto: UserDto) {
-		if(request.cookies['wlc_cud']) {
-			const user = JSON.parse(request.cookies['wlc_cud']);
+	async processUserAuthorization(
+		@Res() response: IResponse, 
+		@Body() userDto: UserDto,
+		@UserCookies() user: IUser | undefined,
+		@Cookies('wlc_src') roleSecret: string | undefined,
+		@Cookies('wlc_bid') businessId: string | undefined,
+	) {
+		/* return spawnStaff(response); */
 
-			if(!request.cookies['wlc_bid']) {
-				response.cookie('wlc_bid', user.businessId, { sameSite: 'none', secure: true });
+		let role = "guest";
+
+		if(roleSecret) {
+			role = atob(roleSecret);
+		}
+
+		const sendCookie = (name: string, value: any) => {
+			const newValue = typeof value === "string" ? value : JSON.stringify(value);
+			response.cookie(name, newValue, { sameSite: 'none', secure: true })
+		};
+		
+		if(user) {
+			if(user.role !== role) {
+				user.role = role;
+				sendCookie('wlc_cud', user);
 			}
+
+			if(!businessId) {
+				sendCookie('wlc_bid', user.businessId);
+			}
+
 			return response.json(user);
 		}
 
-		if(request.cookies['wlc_gud']) {
-			const user = JSON.parse(request.cookies['wlc_gud']);
-			
-			if(!request.cookies['wlc_bid']) {
-				response.cookie('wlc_bid', user.businessId, { sameSite: 'none', secure: true });
-			}
-
-			return response.json(user);
-		}
-
-		const user = await this.userService.processUserAuthorization(userDto);
-		const isGuest = user.role === 'guest';
+		const newUser = await this.userService.processUserAuthorization(userDto);
+		const isGuest = newUser.role === 'guest';
 
 		if(!isGuest) {
-			response.cookie('wlc_cud', JSON.stringify(user), { sameSite: 'none', secure: true });
+			sendCookie('wlc_cud', newUser);
 		}
 
 		if(isGuest) {
-			response.cookie('wlc_gud', JSON.stringify(user), { sameSite: 'none', secure: true });
+			sendCookie('wlc_gud', newUser);
 		}
 
-		response.cookie('wlc_bid', user.businessId, { sameSite: 'none', secure: true });
+		sendCookie('wlc_src', btoa(newUser.role));
+		sendCookie('wlc_bid', newUser.businessId);
 
-		return response.json(user);
+		return response.json(newUser);
 	}
 }

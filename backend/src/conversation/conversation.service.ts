@@ -70,7 +70,11 @@ export class ConversationService {
 			throw new HttpException('missing users\'s cookie', HttpStatus.UNAUTHORIZED);
 		}
 
-		const conversation = await this.conversationModel.findOne({ _id: id }).exec();
+		let conversation;
+
+		try {
+			conversation = await this.conversationModel.findById(id).exec();
+		} catch {}
 
 		if(!conversation) {
 			throw new HttpException(`Conversation ${id} does not found!`, HttpStatus.NOT_FOUND);
@@ -96,7 +100,7 @@ export class ConversationService {
 		conversationData.messages = conversation.messages.slice(offset * limit, (offset * limit) + limit);
 		conversationData.messages.reverse();
 
-		const filledConversation = await this.fillConversation(conversationData, user, generalSettings);
+		const filledConversation = await this.fillConversation(conversationData, user);
 
 		return filledConversation;
 	}
@@ -115,36 +119,13 @@ export class ConversationService {
 		return { isMessageSaved: true, messages: newConversation.messages };
 	}
 	
-	async fillConversation(conversation: IConversation, user: IUser, generalSettings) {
-		const recipients = conversation.recipients.filter(recipient => recipient !== user._id);
-
+	async fillConversation(conversation: IConversation, user: IUser) {
 		const generateRecipientsDataMap = async (_index: number = 0, result = {}) => {
-			if(_index >= recipients.length) {
+			if(_index >= conversation.recipients.length) {
 				return result;
 			}
 
-			let recipientData: IUser | IConnectedUser = this.socketService.getUserById(recipients[_index], true);
-			
-			try {
-				if(!recipientData) {
-					recipientData = await this.userModel.findOne({ _id: recipients[_index] }).exec();
-				}
-			} catch {}
-
-			if(recipients.includes(user.businessId)) {
-				generalSettings = generalSettings || this.botService.getGeneralSettings(user) || {};
-
-				result[user.businessId] = {
-					email: "",
-					role: "system",
-					_id: user.businessId,
-					businessId: user.businessId,
-					createdAt: new Date().toISOString(),
-					lastVisitAt: new Date().toISOString(),
-					avatarUrl: generalSettings.botAvatar || null,
-					username: generalSettings.botName || `Guest#${user.businessId}`
-				};
-			}
+			let recipientData = await this.userService.getUserById(conversation.recipients[_index], user, true);
 
 			if(recipientData) {
 				result[recipientData._id] = recipientData;
@@ -155,44 +136,65 @@ export class ConversationService {
 		
 		const recipientsDataMap = await generateRecipientsDataMap();
 
-		const recipientsDataById = {
-			[user._id]: user,
-			...recipientsDataMap,
-		}
-
 		const getConversationTitle = (): string => {
-			const recipientsDataList: IConnectedUser[] = Object.values(recipientsDataMap)
-			if(recipientsDataList.length) {
-				return recipientsDataList.reduce((acc, recipient) => {
-					acc = acc ? `${acc}, ${recipient.username}` : recipient.username;
+			let recipientsDataList: IConnectedUser[] = Object.values(recipientsDataMap);
+			recipientsDataList = recipientsDataList.filter((recipientData) => recipientData._id !== user._id);
+
+			let title = '';
+			if(!!recipientsDataList.length) {
+				title += recipientsDataList.reduce((acc, recipientData) => {
+					acc = acc ? `${acc}, ${recipientData.username}` : recipientData.username;
+
 					return acc;
 				}, '');
 			}
 
-			if(recipients.length) {
-				return recipients
-					// .filter(recipient => recipient !== user.businessId)
-					.reduce((acc, recipient) => {
-						const recipientName = `Guest#${recipient.substring(0, 4)}`;
-						acc = acc ? `${acc}, ${recipientName}` : recipientName;
-						return acc;
+			if(recipientsDataList.length < conversation.recipients.length) {
+				const _title = conversation.recipients.reduce((acc, recipient) => {
+					if(recipient !== user._id && !recipientsDataMap[recipient]) {
+						const username = `guest#${recipient.slice(0, 4)}`;
+						acc = acc ? `${acc}, ${username}` : username;
+					}
+
+					return acc;
 				}, '');
+
+				title = title
+					? 	_title 	?	`${title}, ${_title}` :	title
+					: 	_title
+				;
 			}
 
-			return user.username;
+			return title;
 		}
 
 		const result: FilledConversation = generateConversation(conversation, user);
 
 		result.title = getConversationTitle();
-		result.recipientsDataById = recipientsDataById;
+		result.recipientsDataById = recipientsDataMap;
 
 		return result;
 	}
 
-	async getConversationsPageByUserId(queryParams: FindConversationsPageByUserIdDTO, user: IConnectedUser, generalSettings) {
+	async getConversationsPageByUserId(queryParams: FindConversationsPageByUserIdDTO, user: IUser) {
 		if(!user._id) {
 			throw new HttpException('missing users\'s cookie', HttpStatus.UNAUTHORIZED);
+		}
+
+		if(user.role === "guest" || user.role === "user") {
+			const conversations = [];
+			const conversation = await this.conversationModel.findOne({
+				creator: user._id,
+				recipients: [user.businessId]
+			});
+
+			
+			if(conversation) {
+				conversation.messages = conversation.messages.slice(0, 25);
+				conversations.push(conversation);
+			}
+
+			return conversations;
 		}
 
 		let offset = parseInt(queryParams?.offset, 10) || 0;
@@ -224,7 +226,7 @@ export class ConversationService {
 				return result;
 			}
 
-			result.push(await this.fillConversation(conversationsArrayMap[_index], user, generalSettings));
+			result.push(await this.fillConversation(conversationsArrayMap[_index], user));
 
 			return await fillCovnersations(_index + 1, result);
 		}
@@ -232,15 +234,9 @@ export class ConversationService {
 		return await fillCovnersations();
 	}
 
-	async createConversation(conversationDto: ConversationDto, user: IUser, generalSettings, response: Response) {
+	async createConversation(conversationDto: ConversationDto, user: IUser) {
 		if(!user._id) {
 			throw new HttpException('Missing user\'s cookie', HttpStatus.BAD_REQUEST);
-		}
-
-		if(!generalSettings) {
-			generalSettings = await this.botService.getGeneralSettings(user);
-			
-			response.cookie('wlc_gs', JSON.stringify(generalSettings), { sameSite: 'none', secure: true });
 		}
 
 		const offset = 0;
@@ -251,7 +247,8 @@ export class ConversationService {
 
 		if(conversationDto.recipients.includes(user.businessId)) {
 			conversation = await this.conversationModel.findOne({
-				recipients: { $all: [user._id, ...conversationDto.recipients] },
+				creator: user._id,
+				recipients: { $all: [user._id, user.businessId] },
 			}).exec();
 		}
 
@@ -268,7 +265,8 @@ export class ConversationService {
 			conversationData.messages = conversation.messages.reverse();
 			conversationData.messages = conversation.messages.slice(offset * limit, (offset * limit) + limit);
 			
-			return response.json(await this.fillConversation(conversationData, user, generalSettings));
+			const newConversation = await this.fillConversation(conversationData, user)
+			return newConversation;
 		}
 
 		const newConversation = {
@@ -287,9 +285,9 @@ export class ConversationService {
 
 		conversation = await conversation.save();
 
-		conversationData = await this.fillConversation(generateConversation(conversation, user), user, generalSettings)
+		conversationData = await this.fillConversation(generateConversation(conversation, user), user)
 	
-		return response.json(conversationData);
+		return conversationData;
 	}
 
 	async makeConversationStaffAwationById(conversationId) {
@@ -371,26 +369,17 @@ export class ConversationService {
 
 		const staffList = await this.userService.getFullStaffList();
 
-		const filledConversation = await this.fillConversation(conversation, user, generalSettings);
+		let filledConversation = await this.fillConversation(conversation, user);
+
+		filledConversation.messages = [];
+		filledConversation.isConversationWaitingStaff = false;
+		filledConversation.isConversationSupportedByStaff = false;
 
 		await this.notificationsService.removeStaffAwaitionNotificationsByConversationId(conversation._id);
 		await this.sendUpdateConversationTriggerToRecipients(conversation);
 		await this.notificationsService.sendMenyNotificationsListUpdateTriggers(staffList);
 
-		return {
-			messages: [],
-			_id: filledConversation._id,
-			title: filledConversation.title,
-			isConversationWaitingStaff: false,
-			creator: filledConversation.creator,
-			isConversationSupportedByStaff: false,
-			createdAt: filledConversation.createdAt,
-			recipients: filledConversation.recipients,
-			businessId: filledConversation.businessId,
-			franchiseId: filledConversation.franchiseId,
-			recipientsDataById: filledConversation.recipientsDataById,
-			unreadedMessagesCount: filledConversation.unreadedMessagesCount,
-		}
+		return filledConversation;
 	}
 
 	async connectStaffToConversation(conversationId: string, staffId: string) {
@@ -569,7 +558,7 @@ export class ConversationService {
 
 		await this.notificationsService.removeStaffAwaitionNotificationsByConversationId(conversation._id);
 
-		return this.fillConversation(conversation, user, generalSettings);
+		return this.fillConversation(conversation, user);
 	}
 
 	async endConversationSupportingByStaff(conversationId: string, user: IUser, generalSettings: IGeneralSettings) {
@@ -583,6 +572,6 @@ export class ConversationService {
 		await this.sendUpdateConversationTriggerToRecipients(conversation);
 		await this.sendUserDisconnectionMessage(conversation, user);
 
-		return this.fillConversation(conversation, user, generalSettings);
+		return this.fillConversation(conversation, user);
 	}
 }

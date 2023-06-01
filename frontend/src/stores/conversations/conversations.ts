@@ -253,9 +253,12 @@ export const useConversationsStore = create<ConversationsState>((set, get): Conv
 
 	const processInputConversationMessage = async (message: IInputMessage): Promise<void> => {
 		const selectedConversation = get().selectedConversation;
+		const isChatOpened = useSettingsStore.getState().isChatOpened;
 
-		if(await get().addMessage(message)) {
-			if(selectedConversation && selectedConversation._id !== message.conversationId) {
+		const isMessageAdded = await get().addMessage(message);
+
+		if(isMessageAdded) {
+			if(!isChatOpened || selectedConversation && selectedConversation._id !== message.conversationId) {
 				await useCloudStore.getState().addCloud(message, "message");
 			}
 			useSettingsStore.getState().playAudio(audioList.NOTIFICATION);
@@ -268,6 +271,8 @@ export const useConversationsStore = create<ConversationsState>((set, get): Conv
 		const selectedConversation = get().selectedConversation;
 		const isConversationWaitingStaff = get().isConversationWaitingStaff;
 
+		const userRole = userData?.role || "guest";
+
 		if(isConversationWaitingStaff && !message.isForce) {
 			return false;
 		};
@@ -276,9 +281,15 @@ export const useConversationsStore = create<ConversationsState>((set, get): Conv
 			return conversation._id === message.conversationId;
 		});
 
+		const isCommonUser = userRole === "guest" || userRole === "user";
+		const canAddMessage = (conversation: IConversation) => conversation.isConversationWithAssistant
+			?	conversation._id === message.conversationId
+			:	!isCommonUser
+		;
+
 		if(conversationIndex < 0) {
 			const { isFetched, data } = await queryConversationByIdAPI(message.conversationId);
-			if(isFetched && data) {
+			if(isFetched && data && canAddMessage(data)) {
 				set(produce((draft: ConversationsState) => {
 					// data.messages.push(message);
 					// data.unreadedMessagesCount = message.unreadedMessagesCount || 0;
@@ -289,12 +300,12 @@ export const useConversationsStore = create<ConversationsState>((set, get): Conv
 				if(selectedConversation?._id === message.conversationId) {
 					get().readConversationMessages();
 				}
-			};
 
-			return false;
+				return true;
+			};
 		};
 
-		if(conversationIndex >= 0) {
+		if(conversationIndex >= 0 && canAddMessage(conversations[conversationIndex])) {
 			set(produce((draft: ConversationsState) => {
 				// draft.unreadedMessagesCount += (message.unreadedMessagesCount || 0);
 				// draft.conversations[conversationIndex].unreadedMessagesCount = message.unreadedMessagesCount || 0;
@@ -306,15 +317,17 @@ export const useConversationsStore = create<ConversationsState>((set, get): Conv
 				}
 				draft.unreadedMessagesCount += 1;
 			}));
+
+			if(selectedConversation?._id === message.conversationId) {
+				get().readConversationMessages();
+			}
+
+			return true;
 		};
 
-		if(selectedConversation?._id === message.conversationId) {
-			get().readConversationMessages();
-		}
-
-		if(userData?._id !== message.sender._id) {
-			return true
-		};
+		// if(userData?._id !== message.sender._id) {
+		// 	return true
+		// };
 
 		return false;
 	};

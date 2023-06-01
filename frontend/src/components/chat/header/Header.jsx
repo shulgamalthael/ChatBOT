@@ -12,6 +12,7 @@ import CompanionAvatar from "../../common/CompanionAvatar";
 import { useWindows } from "../../../stores/windows/windows";
 import { useConversationsStore } from "../../../stores/conversations/conversations";
 import { useNotificationsStore } from "../../../stores/notifications/notificationsStore";
+import { useUserStore } from "../../../stores/user/user";
 
 const HeaderCompanionAvatar = memo(() => {
 	console.log("Header Companion Avatar Rendered!");
@@ -43,8 +44,15 @@ const UnreadedMessagesIndicator = () => {
 }
 
 const HeaderMenuIcon = () => {
+	const userData = useUserStore((state) => state.userData);
 	const canShowMainMenu = useWindows(state => state.mainMenuState.show);
 	const toggleMainMenuVisibility = useWindows(state => state.toggleMainMenuVisibility);
+
+	const role = userData.role;
+
+	if(role === "user" || role === "guest") {
+		return null;
+	}
 
 	console.log("Header Menu Icon Rendered!");
 

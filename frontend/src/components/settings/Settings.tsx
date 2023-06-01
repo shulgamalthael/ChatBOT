@@ -540,11 +540,26 @@ const LiveAgentBlock = () => {
 	return(
 		<Section title="Live Agent" save={saveLiveAgentSettings}>
 			<div className="w-200">
-				<TriggerLinkField />
+				{/* <TriggerLinkField /> */}
 				<LiveChatDurationBlock />
 				<RespondsWithinDuration />
 			</div>
 		</Section>
+	)
+}
+
+const SettingsButton = () => {
+	const showChatBOTSettings = useWindows((state) => state.showChatBOTSettings);
+	const isEnabled = useBotSettings((state) => state.generalSettings.enabled);
+
+	if(isEnabled) {
+		return null;
+	}
+
+	return (
+		<div className="settings-showBtn" onClick={showChatBOTSettings}>
+			<div>+</div>
+		</div>
 	)
 }
 
@@ -555,7 +570,7 @@ const Settings = () => {
 	console.log("Settings Rendered!");
 
 	if(!canShowChatBOTSettings) {
-		return null;
+		return <SettingsButton />;
 	}
 
 	return(

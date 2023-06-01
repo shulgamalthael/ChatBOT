@@ -14,6 +14,7 @@ import { readFileSync } from 'fs';
 import * as cookieParser from 'cookie-parser';
 import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import { AuthorizationMiddleware } from './middlewares/authorization.middleware';
 
 require("dotenv").config();
 
