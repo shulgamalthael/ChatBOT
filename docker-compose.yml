@@ -1,7 +1,8 @@
 version: "3.8"
 services:
     mongodb:
-        image: mongo:latest
+        build:
+            context: ./mongo
         restart: always
         ports:
             - 27017:27017
@@ -10,7 +11,7 @@ services:
 
     nest:
         build:
-            context: .
+            context: ./nest
         ports:
             - 4488:4488
             - 4489:4488
