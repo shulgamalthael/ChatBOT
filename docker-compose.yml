@@ -8,20 +8,12 @@ services:
             - 27017:27017
         volumes:
             - ./backend/mongo/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
-
     nest:
         build:
             context: ./nest
         ports:
             - 4488:4488
             - 4489:4488
-
-    # react:
-    #     build:
-    #         context: ./frontend
-    #     ports:
-    #         - 4490:4490
-
     nginx:
         restart: always
         build:
@@ -29,24 +21,3 @@ services:
         ports:
             - 80:80
             - 443:443
-
-    # mongo-express:
-    #     image: mongo-express
-    #     restart: always
-    #     ports:
-    #         - 8099:8081
-    #     depends_on:
-    #         - mongo
-    #     environment:
-    #         ME_CONFIG_MONGODB_PORT: 27017
-    #         ME_CONFIG_BASICAUTH_USERNAME: user1
-    #         ME_CONFIG_BASICAUTH_PASSWORD: 123456
-    #         ME_CONFIG_MONGODB_ADMINUSERNAME: user
-    #         ME_CONFIG_MONGODB_ADMINPASSWORD: 123456
-    #     links:
-    #         - mongo
-
-    # mongodb environment:
-        # MONGO_INITDB_DATABASE: ChatBOT
-        # MONGO_INITDB_ROOT_USERNAME: user
-        # MONGO_INITDB_ROOT_PASSWORD: 12345678
