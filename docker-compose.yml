@@ -2,7 +2,7 @@ version: "3.8"
 services:
     mongodb:
         build:
-            context: ./mongo
+            context: .
         restart: always
         ports:
             - 27017:27017
