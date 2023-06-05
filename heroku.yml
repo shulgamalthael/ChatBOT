@@ -3,3 +3,10 @@ build:
     mongodb: Dockerfile.mongodb
     nest: /application/Dockerfile.nest
     nginx: /application/Dockerfile.nginx
+release:
+  image:
+    - mongodb
+    - nest
+    - nginx
+  command:
+    - echo 'Started!4$!'
