@@ -3,14 +3,32 @@ services:
     mongodb:
         image: mongo:latest
         restart: always
-        # environment:
-            # MONGO_INITDB_DATABASE: ChatBOT
-            # MONGO_INITDB_ROOT_USERNAME: user
-            # MONGO_INITDB_ROOT_PASSWORD: 12345678
         ports:
             - 27017:27017
         volumes:
             - ./backend/mongo/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+
+    nest:
+        build:
+            context: .
+        ports:
+            - 4488:4488
+            - 4489:4488
+
+    # react:
+    #     build:
+    #         context: ./frontend
+    #     ports:
+    #         - 4490:4490
+
+    nginx:
+        restart: always
+        build:
+            context: ./nginx
+        ports:
+            - 80:80
+            - 443:443
+
     # mongo-express:
     #     image: mongo-express
     #     restart: always
@@ -26,16 +44,8 @@ services:
     #         ME_CONFIG_MONGODB_ADMINPASSWORD: 123456
     #     links:
     #         - mongo
-    nest:
-        build:
-            context: .
-        ports:
-            - 4488:4488
-            - 4489:4488
-    nginx:
-        restart: always
-        build:
-            context: ./backend/nginx
-        ports:
-            - 80:80
-            - 443:443
+
+    # mongodb environment:
+        # MONGO_INITDB_DATABASE: ChatBOT
+        # MONGO_INITDB_ROOT_USERNAME: user
+        # MONGO_INITDB_ROOT_PASSWORD: 12345678
