@@ -1,1 +1,5 @@
-run: heroku container:push --recursive web
+build:
+  docker:
+    mongodb: Dockerfile.mongodb
+    nest: /application/Dockerfile.nest
+    nginx: /application/Dockerfile.nginx
