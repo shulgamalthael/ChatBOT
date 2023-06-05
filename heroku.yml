@@ -8,5 +8,5 @@ release:
     - mongodb
     - nest
     - nginx
-  command:
+command:
     - echo 'Started!4$!'
