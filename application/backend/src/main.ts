@@ -5,7 +5,7 @@ import { AppModule } from './app.module';
 import { NestFactory } from '@nestjs/core';
 
 /* @path */
-import { resolve, join } from "path";
+import { resolve } from "path";
 
 /* @file-sistem */
 import { readFileSync } from 'fs';
@@ -18,16 +18,14 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 require("dotenv").config();
 
 const appPath = process.env.ENV === "PRODUCTION"
-	?	resolve("backend")
+	?	"./backend"
 	:	resolve()
-
-const securityBedPath = process.env.ENV === "PRODUCTION"
-	?	join(appPath, "security")
-	:	join("security")
 ;
 
-const certificate = readFileSync(join(securityBedPath, "localhost4488.pem"));
-const privateKey = readFileSync(join(securityBedPath, "localhost-privateKey4488.pem"));
+const securityBedPath = `${appPath}/security`;
+
+const certificate = readFileSync(`${securityBedPath}/localhost4488.pem`);
+const privateKey = readFileSync(`${securityBedPath}/localhost-privateKey4488.pem`);
 
 const appOptions = {
 	httpsOptions: { key: privateKey, cert: certificate },
@@ -51,9 +49,8 @@ async function bootstrap() {
 	const app = await NestFactory.create<NestExpressApplication>(AppModule, appOptions);
 	app.useGlobalPipes(validationPipe);
 	app.use(cookieParser());
-	app.useStaticAssets(join(appPath, "assets"), { prefix: "/assets" });
-	app.useStaticAssets(join(appPath, "uploads"), { prefix: "/uploads" });
-	// app.useStaticAssets(join(appPath, "frontend_build"), { prefix: "/static" });
+	app.useStaticAssets(`${appPath}/assets`, { prefix: "/assets" });
+	app.useStaticAssets(`${appPath}/uploads`, { prefix: "/uploads" });
 
 	await app.listen(4488);
 }

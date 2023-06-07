@@ -26,9 +26,9 @@ export class UserService {
 		private readonly botService: BotService,
 	) {}
 
-	async getUserById(userId: string, user: IUser, skipException: boolean = false) {
-		if(userId === user.businessId) {
-			const generalSettings = await this.botService.getGeneralSettings(user);
+	async getUserById(userId: string, businessId: string, skipException: boolean = false) {
+		if(userId === businessId) {
+			const generalSettings = await this.botService.getGeneralSettings(businessId);
 
 			return {
 				email: "",
@@ -43,7 +43,7 @@ export class UserService {
 			}
 		}
 
-		const onlineUsersList = this.socketService.getUsersList();
+		const onlineUsersList = this.socketService.getUsersList(businessId);
 		const userDataDocument = this.socketService.getUserById(userId, true);
 		let userData: IUser;
 
@@ -52,7 +52,7 @@ export class UserService {
 		}
 
 		if(userData) {
-			userData.isOnline = !!onlineUsersList.find((user) => user._id === userData._id);
+			userData.isOnline = !!onlineUsersList.find((_user) => _user._id === userData._id);
 			return fillUserData(userData);
 		}
 
@@ -66,7 +66,7 @@ export class UserService {
 
 		if(userData) {
 			userData = fillUserData(userData);
-			userData.isOnline = !!onlineUsersList.find((user) => user._id === userData._id);
+			userData.isOnline = !!onlineUsersList.find((_user) => _user._id === userData._id);
 		}
 
 		return userData;
@@ -106,7 +106,7 @@ export class UserService {
 		return user.save();
 	}
 
-	async getStaffList(offset: string = "0", withPagination: boolean = true): Promise<IUser[]> {
+	async getStaffList(offset: string = "0", businessId: string, withPagination: boolean = true): Promise<IUser[]> {
 		const limit = 25;
 		let paginationOffset = parseInt(offset, 1);
 		paginationOffset = paginationOffset - 1;
@@ -117,14 +117,12 @@ export class UserService {
 			:	{}
 		;
 
-		let onlineUsersList = this.socketService.getUsersList();
+		let onlineUsersList = this.socketService.getUsersList(businessId);
 		const filledOnlineUsersList = onlineUsersList
-			.filter((user) => user.role === "staff")
+			.filter((_user) => _user.role === "staff" && _user.businessId === businessId)
 			.slice(paginationOffset * limit, limit)
-			.map((user) => fillUserData(user))
+			.map((_user) => fillUserData(_user))
 		;
-
-		console.log({ onlineUsersList, filledOnlineUsersList });
 
 		let result = [...filledOnlineUsersList];
 
@@ -162,17 +160,17 @@ export class UserService {
 		return extractUserData();
 	}
 
-	async getFullStaffList() {
-		return this.getStaffList("0", false);
+	async getFullStaffList(businessId: string) {
+		return this.getStaffList("0", businessId, false);
 	}
 
-	async getUsersList(offset: string) {
+	async getUsersList(offset: string, businessId: string) {
 		const limit = 25;
 		let paginationOffset = parseInt(offset, 10);
 		paginationOffset = paginationOffset - 1;
 		paginationOffset = paginationOffset || 0;
 
-		let onlineUsersList = this.socketService.getUsersList();
+		let onlineUsersList = this.socketService.getUsersList(businessId);
 		
 		const filledOnlineUsersList: IUser[] = onlineUsersList.map((user: IUser) => {
 			user.isOnline = !!onlineUsersList.find((_user) => _user._id === user._id);
@@ -212,5 +210,32 @@ export class UserService {
 		}
 
 		return extractUserData();
+	}
+
+	async changeUserRole(userId: string, role: string) {
+		if(!userId) {
+			throw new HttpException("Invalid UserId", HttpStatus.BAD_REQUEST);
+		}
+
+		if(!role) {
+			throw new HttpException("Invalid role", HttpStatus.BAD_REQUEST);
+		}
+
+		let user = await this.socketService.changeUserRole(userId, role);
+
+		if(user) {
+			return user;
+		}
+
+		try {
+			user = await this.userModel.findById(userId).exec();
+		} catch {}
+
+		if(user) {
+			user.role = role;
+			return user.save();
+		}
+
+		throw new HttpException(`User #${userId} not found!`, HttpStatus.BAD_REQUEST);
 	}
 }

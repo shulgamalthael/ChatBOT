@@ -126,14 +126,14 @@ const MessagesPagination = ({ messagesBlockRef }) => {
 			const isFetched = await getMessagesPaginationPage();
 			if(isFetched) {
 				e.target.scrollTop = 250;
-			}
-		}
+			};
+		};
 	}, [getMessagesPaginationPage]);
 
 	useEffect(() => {
 		if(selectedConversation && messagesBlockRef.current) {
 			messagesBlockRef.current.scrollTop = messagesBlockRef.current.scrollHeight;
-		}
+		};
 	}, [selectedConversation]);
 
 	useEffect(() => {

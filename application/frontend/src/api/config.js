@@ -8,6 +8,8 @@ port = API_PORT ? `:${API_PORT}` : port;
 
 const baseApiUrl = `${protocol}://${host}${port}`;
 
+console.log({ baseApiUrl });
+
 const config = {
 	baseApiUrl,
 };

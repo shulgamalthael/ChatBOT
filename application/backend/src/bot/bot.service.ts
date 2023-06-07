@@ -4,7 +4,6 @@ import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { IUser } from "../user/interfaces/user.interface";
 import { CommandsListDto } from "./dto/commandsListDto";
-import { fillUserData } from "../../utils/scripts/fillUserData";
 
 import { generateId } from "utils/scripts/spawner";
 import { SocketService } from "../socket/socket.service";
@@ -26,9 +25,13 @@ import { UserService } from "../user/user.service";
 
 import { getSiteUrl } from "../../utils/scripts/getSiteUrl";
 
+require("dotenv").config();
+
 const siteUrl = getSiteUrl();
 
 const isFile = (path: string): boolean => {
+	console.log({ path, kile: lstatSync(path).isFile() });
+
 	try {
 		return lstatSync(path).isFile();
 	} catch {
@@ -45,6 +48,7 @@ const isDir = (path: string): boolean => {
 }
 
 interface IGeneralSettingsGenerationProps {
+	businessId?: string;
 	botName?: string;
 	enabled?: boolean;
 	allowPages?: IPage[];
@@ -54,6 +58,7 @@ interface IGeneralSettingsGenerationProps {
 }
 
 const generateGeneralSettings = (generalSettings: IGeneralSettingsGenerationProps = {}) => ({
+	businessId: generalSettings.businessId || "4444",
 	botName: generalSettings.botName || 'Ahill BOT',
 	enabled: generalSettings.enabled || false,
 	botAvatar: generalSettings.botAvatar || `${siteUrl}/assets/avatars/assistant.jpg`,
@@ -107,6 +112,87 @@ export class BotService {
 		return await this.saveGeneralSettings(generateGeneralSettings(generalSetttings), user);
 	}
 
+	sendMessage = (message, userId, businessId: string) => {
+		const globalSendingTimer = 100;
+		const userConnection = this.socketService.getConnectionByUserId(userId, businessId);
+		
+		return new Promise((resolve) => {
+			setTimeout(() => {
+				resolve(this.socketService.sendConversationMessageFromClientToRecipient(userConnection.connection, message));
+			}, globalSendingTimer);
+		});
+	}
+
+	sendResponseMessage = async (responsesList, conversationId, user, responseIndex = 0) => {
+		if(responseIndex >= responsesList.length) {
+			return true;
+		}
+
+		const response = responsesList[responseIndex];
+
+		await this.sendMessage({
+			conversationId,
+			text: response.title,
+			recipients: [user._id],
+			senderId: user.businessId,
+		}, user._id, user.businessId);
+
+		return this.sendResponseMessage(responsesList, conversationId, user, responseIndex + 1);
+	}
+
+	sendMenuOptionMessage = async (menuOptionsList, conversationId, user, menuOptionIndex = 0) => {
+		if(menuOptionIndex >= menuOptionsList.length) {
+			return true;
+		}
+
+		const menuOption = menuOptionsList[menuOptionIndex];
+
+		await this.sendMessage({
+			conversationId,
+			text: menuOption.title,
+			link: menuOption?.link,
+			recipients: [user._id],
+			isCommandMenuOption: true,
+			senderId: user.businessId, 
+			actionType: menuOption?.actionType,
+		}, user._id, user.businessId);
+
+		return this.sendMenuOptionMessage(menuOptionsList, conversationId, user, menuOptionIndex + 1);
+	}
+
+	async sendGreeting(user: IUser, conversationId: string) {
+		const commandsList = await this.getCommandsList(user);
+		const userConnection = this.socketService.getConnectionByUserId(user._id, user.businessId, true);
+
+		if(!userConnection || !conversationId) {
+			// throw new HttpException(`User ${user.username} does not exist!`, HttpStatus.BAD_REQUEST);
+			return false;
+		}
+
+		const defaultGreetingCommand = {
+			_id: generateId(),
+			type: 'greeting',
+			responsesList: [
+				{
+					_id: generateId(),
+					title: "Welcome to WellnessLiving!",
+				},
+				{
+					_id: generateId(),
+					title: "How can I help You?"
+				}
+			],
+			menuOptionsList: [],
+		};
+
+		const greetingCommand = commandsList.find((command) => {
+			return /greeting/i.test(command.type);
+		}) || defaultGreetingCommand;
+
+		await this.sendResponseMessage(greetingCommand.responsesList, conversationId, user);
+		await this.sendMenuOptionMessage(greetingCommand.menuOptionsList, conversationId, user);
+	}
+
 	async sendMessageToBOT(message, user, conversationId, connection) {
 		if(!user._id) {
 			throw new HttpException('Missing User\'s cookie', HttpStatus.BAD_REQUEST);
@@ -121,21 +207,9 @@ export class BotService {
 			"We will connect You when it will possible.",
 		];
 
-		const globalSendingTimer = 150;
-
 		const generalSettings = await this.getGeneralSettings(user);
 
 		const commandsList = await this.getCommandsList(user) || [];
-
-		const userConnection = this.socketService.getConnectionByUserId(user._id);
-
-		const sendMessage = (message) => {
-			return new Promise((resolve) => {
-				setTimeout(() => {
-					resolve(this.socketService.sendConversationMessageFromClientToRecipient(userConnection.connection, message));
-				}, globalSendingTimer);
-			});
-		}
 
 		const sendLiveAgentDescription = async (descriptionIndex: number = 0) => {
 			if(liveAgentDescriptionList.length <= descriptionIndex) {
@@ -144,52 +218,15 @@ export class BotService {
 
 			const messageText = liveAgentDescriptionList[descriptionIndex];
 
-			await sendMessage({
+			await this.sendMessage({
 				isForce: true,
 				conversationId,
 				text: messageText,
 				recipients: [user._id],
 				senderId: user.businessId,
-			});
+			}, user._id, user.businessId);
 
 			return sendLiveAgentDescription(descriptionIndex + 1);
-		}
-
-		const sendResponseMessage = async (responsesList, responseIndex = 0) => {
-			if(responseIndex >= responsesList.length) {
-				return true;
-			}
-
-			const response = responsesList[responseIndex];
-
-			await sendMessage({
-				conversationId,
-				text: response.title,
-				recipients: [user._id],
-				senderId: user.businessId,
-			});
-
-			return await sendResponseMessage(responsesList, responseIndex + 1);
-		}
-
-		const sendMenuOptionMessage = async (menuOptionsList, menuOptionIndex = 0) => {
-			if(menuOptionIndex >= menuOptionsList.length) {
-				return true;
-			}
-
-			const menuOption = menuOptionsList[menuOptionIndex];
-
-			await sendMessage({
-				conversationId,
-				text: menuOption.title,
-				link: menuOption?.link,
-				recipients: [user._id],
-				isCommandMenuOption: true,
-				senderId: user.businessId, 
-				actionType: menuOption?.actionType,
-			});
-
-			return await sendMenuOptionMessage(menuOptionsList, menuOptionIndex + 1);
 		}
 
 		const sendMessageByResponseDurationTimer = async (callback: Function) => {
@@ -210,7 +247,7 @@ export class BotService {
 			const notificationTitle = message.recipients.reduce((acc, recipient) => {
 				const recipientData = this.socketService.getUserById(recipient, true);
 
-				if(recipientData && recipient !== user.businessId) {
+				if(recipientData && recipient === user._id) {
 					if(acc) {
 						acc += `,${recipientData.username}`;
 					}
@@ -223,11 +260,10 @@ export class BotService {
 				return acc;
 			}, "") + " await You";
 
-			const staffList = await this.usersService.getStaffList("0", false);
+			let staffList = await this.usersService.getStaffList("0", user.businessId, false);
+			staffList = staffList.filter((staff) => staff._id !== user._id);
 
-			const staffIds = staffList
-			.filter((staff) => staff._id !== user._id)
-			.map((staff) => staff._id);
+			const staffIds = staffList.map((staff) => staff._id);
 
 			const notifications: NotificationDto[] = staffList.map((staff) => ({
 				to: staff._id,
@@ -279,8 +315,8 @@ export class BotService {
 		timer = timer * 1000;
 
 		const sendRejectMessages = async () => {
-			await sendResponseMessage(rejectingCommand.responsesList);
-			await sendMenuOptionMessage(rejectingCommand.menuOptionsList);
+			await this.sendResponseMessage(rejectingCommand.responsesList, conversationId, user);
+			await this.sendMenuOptionMessage(rejectingCommand.menuOptionsList, conversationId, user);
 
 			return true;
 		}
@@ -294,12 +330,12 @@ export class BotService {
 		}
 
 		const sendMessages = async () => {
-			await sendResponseMessage(command.responsesList);
-			await sendMenuOptionMessage(command.menuOptionsList);
+			await this.sendResponseMessage(command.responsesList, conversationId, user);
+			await this.sendMenuOptionMessage(command.menuOptionsList, conversationId, user);
 
 			return true;
 		}
-		
+
 		const isSended = await sendMessageByResponseDurationTimer(sendMessages);
 
 		return isSended;
@@ -323,7 +359,7 @@ export class BotService {
 		const originalName = botAvatar.originalname;
 		const fileNameExecutedArray = /\.(png|jpg|jpeg|webp)$/.test(originalName)
 			?	/\.(png|jpg|jpeg|webp)$/.exec(originalName)
-			: null
+			: 	null
 		;
 
 		if(!Array.isArray(fileNameExecutedArray)) {
@@ -331,32 +367,39 @@ export class BotService {
 		}
 
 		const fileType = fileNameExecutedArray[1];
-		const path = `uploads/avatars/${user.businessId}/${user.businessId}.${fileType}`;
-		const avatarUrl = `${siteUrl}/${path}`;
 
-		if(!isDir('uploads')) {
-			mkdirSync('./uploads');
+		const appPath = process.env.ENV === "PRODUCTION"
+			?	"./backend"
+			:	"./"
+		;
+
+		const avatarPath = `uploads/avatars/${user.businessId}/${user.businessId}.${generateId()}.${fileType}`;
+		const path = `${appPath}/${avatarPath}`;
+		const avatarUrl = `${siteUrl}/${avatarPath}`;
+
+		if(!isDir(`${appPath}/uploads`)) {
+			mkdirSync(`${appPath}/uploads`);
 		}
 
-		if(!isDir('uploads/avatars')) {
-			mkdirSync('./uploads/avatars');
+		if(!isDir(`${appPath}/uploads/avatars`)) {
+			mkdirSync(`${appPath}/uploads/avatars`);
 		}
 
-		if(!isDir(`uploads/avatars/${user.businessId}`)) {
-			mkdirSync(`./uploads/avatars/${user.businessId}`);
+		if(!isDir(`${appPath}/uploads/avatars/${user.businessId}`)) {
+			mkdirSync(`${appPath}/uploads/avatars/${user.businessId}`);
 		}
 
-		if(isFile(path)) {
-			unlinkSync(path);
-		}
+		// if(isFile(path)) {
+		// 	unlinkSync(path);
+		// }
 
 		const stream = await createWriteStream(path);
 		await stream.write(botAvatar.buffer);
 		await stream.end();
 
-		if(!isFile(path)) {
-			throw new HttpException('File was not created!', HttpStatus.BAD_REQUEST);
-		}
+		// if(!isFile(path)) {
+		// 	throw new HttpException('File was not created!', HttpStatus.BAD_REQUEST);
+		// }
 
 		if(!existsSettings) {
 			return generateGeneralSettings({ botAvatar: avatarUrl });
@@ -419,7 +462,7 @@ export class BotService {
 			throw new HttpException('Missing User\'s businessId', HttpStatus.BAD_REQUEST);
 		}
 
-		const generalSettings = await this.getGeneralSettings(user);
+		const generalSettings = await this.getGeneralSettings(user.businessId);
 		
 		return generalSettings.allowPages;
 	}
@@ -486,16 +529,12 @@ export class BotService {
 		;
 	}
 
-	async getGeneralSettings(user: IUser) {
-		if(!user._id) {
-			throw new HttpException('Missing User\'s cookie', HttpStatus.BAD_REQUEST);
+	async getGeneralSettings(businessId: string) {
+		if(!businessId) {
+			throw new HttpException('Missing businessId', HttpStatus.BAD_REQUEST);
 		}
 
-		if(!user.businessId) {
-			throw new HttpException('Missing User\'s businessId', HttpStatus.BAD_REQUEST);
-		}
-
-		let generalSettingsDocument = await this.generalSettingsModel.findOne({ businessId: user.businessId }).exec();
+		let generalSettingsDocument = await this.generalSettingsModel.findOne({ businessId }).exec();
 		
 		let generalSettings: IGeneralSettings;
 		if(generalSettingsDocument) {
@@ -504,7 +543,7 @@ export class BotService {
 
 		if(!generalSettings) {
 			generalSettings = generateGeneralSettings();
-			generalSettings.businessId = user.businessId;
+			generalSettings.businessId = businessId;
 			generalSettingsDocument = await this.generalSettingsModel.create(generalSettings);
 			generalSettings = generateGeneralSettings(generalSettingsDocument);
 			return generalSettings;

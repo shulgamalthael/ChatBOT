@@ -65,7 +65,17 @@ export class ConversationService {
 		@InjectModel(Conversation.name) private readonly conversationModel: Model<Conversation>,
 	) {}
 
-	async findConversationById(id: string, user: IUser) {
+	async findConversationByIdIgnoreBelonging(conversationId: string) {
+		let conversation;
+
+		try {
+			conversation = await this.conversationModel.findById(conversationId).exec();
+		} catch {}
+
+		return conversation;
+	}
+
+	async findConversationById(conversationId: string, user: IUser) {
 		if(!user._id) {
 			throw new HttpException('missing users\'s cookie', HttpStatus.UNAUTHORIZED);
 		}
@@ -73,15 +83,15 @@ export class ConversationService {
 		let conversation;
 
 		try {
-			conversation = await this.conversationModel.findById(id).exec();
+			conversation = await this.conversationModel.findById(conversationId).exec();
 		} catch {}
 
 		if(!conversation) {
-			throw new HttpException(`Conversation ${id} does not found!`, HttpStatus.NOT_FOUND);
+			throw new HttpException(`Conversation ${conversationId} does not found!`, HttpStatus.NOT_FOUND);
 		}
 
 		if(!conversation.recipients.includes(user._id)) {
-			throw new HttpException(`User ${user._id} does not belonging to conversation ${id}!`, HttpStatus.UNAUTHORIZED);
+			throw new HttpException(`User ${user._id} does not belonging to conversation ${conversationId}!`, HttpStatus.UNAUTHORIZED);
 		}
 
 		return conversation;
@@ -125,7 +135,7 @@ export class ConversationService {
 				return result;
 			}
 
-			let recipientData = await this.userService.getUserById(conversation.recipients[_index], user, true);
+			let recipientData = await this.userService.getUserById(conversation.recipients[_index], user.businessId, true);
 
 			if(recipientData) {
 				result[recipientData._id] = recipientData;
@@ -181,21 +191,23 @@ export class ConversationService {
 			throw new HttpException('missing users\'s cookie', HttpStatus.UNAUTHORIZED);
 		}
 
-		if(user.role === "guest" || user.role === "user") {
-			const conversations = [];
-			const conversation = await this.conversationModel.findOne({
-				creator: user._id,
-				recipients: [user.businessId]
-			});
+		// if(user.role === "guest" || user.role === "user") {
+		// 	const conversations = [];
+		// 	const conversation = await this.conversationModel.findOne({
+		// 		creator: user._id,
+		// 		recipients: [user.businessId]
+		// 	});
 
 			
-			if(conversation) {
-				conversation.messages = conversation.messages.slice(0, 25);
-				conversations.push(conversation);
-			}
+		// 	if(conversation) {
+		// 		conversation.messages.reverse();
+		// 		conversation.messages = conversation.messages.slice(0, 25);
+		// 		conversation.messages.reverse();
+		// 		conversations.push(conversation);
+		// 	}
 
-			return conversations;
-		}
+		// 	return conversations;
+		// }
 
 		let offset = parseInt(queryParams?.offset, 10) || 0;
 		offset = offset - 1 || 0;
@@ -264,6 +276,7 @@ export class ConversationService {
 			conversationData = generateConversation(conversation, user);
 			conversationData.messages = conversation.messages.reverse();
 			conversationData.messages = conversation.messages.slice(offset * limit, (offset * limit) + limit);
+			conversation.messages.reverse();
 			
 			const newConversation = await this.fillConversation(conversationData, user)
 			return newConversation;
@@ -295,11 +308,15 @@ export class ConversationService {
 			throw new HttpException("conversationId is invalid!", HttpStatus.BAD_REQUEST);
 		}
 
-		const conversation = this.conversationModel.findOneAndUpdate({ _id: conversationId }, { isConversationWaitingStaff: true });
+		const conversation = await this.conversationModel.findOneAndUpdate({ _id: conversationId }, { isConversationWaitingStaff: true }).exec();
 
 		if(!conversation) {
 			throw new HttpException(`Conversation #${conversationId} does not exist!`, HttpStatus.BAD_REQUEST);
 		}
+
+		conversation.messages.reverse();
+		conversation.messages.slice(0, 25);
+		conversation.messages.reverse();
 
 		return conversation;
 	}
@@ -309,11 +326,15 @@ export class ConversationService {
 			throw new HttpException("conversationId is invalid!", HttpStatus.BAD_REQUEST);
 		}
 
-		const conversation = this.conversationModel.findOneAndUpdate({ _id: conversationId }, { isConversationWaitingStaff: false });
+		const conversation = await this.conversationModel.findOneAndUpdate({ _id: conversationId }, { isConversationWaitingStaff: false }).exec();
 
 		if(!conversation) {
 			throw new HttpException(`Conversation #${conversationId} does not exist!`, HttpStatus.BAD_REQUEST);
 		}
+
+		conversation.messages.reverse();
+		conversation.messages = conversation.messages.slice(0, 25);
+		conversation.messages.reverse();
 
 		return conversation;
 	}
@@ -367,7 +388,7 @@ export class ConversationService {
 
 		conversation.messages = [];
 
-		const staffList = await this.userService.getFullStaffList();
+		const staffList = await this.userService.getFullStaffList(user.businessId);
 
 		let filledConversation = await this.fillConversation(conversation, user);
 
@@ -376,7 +397,7 @@ export class ConversationService {
 		filledConversation.isConversationSupportedByStaff = false;
 
 		await this.notificationsService.removeStaffAwaitionNotificationsByConversationId(conversation._id);
-		await this.sendUpdateConversationTriggerToRecipients(conversation);
+		await this.sendUpdateConversationTriggerToRecipients(conversation.recipients.filter((recipient) => recipient !== user._id), conversation._id, conversation.businessId);
 		await this.notificationsService.sendMenyNotificationsListUpdateTriggers(staffList);
 
 		return filledConversation;
@@ -413,9 +434,8 @@ export class ConversationService {
 
 		await this.sendUserConnectionMessage(conversation, staffData);
 
-		await this.sendUpdateConversationTriggerToRecipients(conversation);
+		await this.sendUpdateConversationTriggerToRecipients(conversation.recipients, conversation._id, conversation.businessId);
 
-		const generalSettings = await this.botService.getGeneralSettings(staffData);
 		const liveAgentSettings = await this.botService.getLiveAgentSettings(staffData);
 
 		if(liveAgentSettings.liveChatDuration.enabled) {
@@ -423,25 +443,25 @@ export class ConversationService {
 			timer = timer * 1000 * 60;
 
 			setTimeout(() => {
-				this.endConversationSupportingByStaff(conversation._id, staffData, generalSettings);
+				this.endConversationSupportingByStaff(conversation._id, staffData);
 			}, timer);
 		}
 
 		return true;
 	}
 
-	async sendUpdateConversationTriggerToRecipients(conversation: IConversation, recipientIndex: number = 0) {
-		if(conversation.recipients.length <= recipientIndex) {
+	async sendUpdateConversationTriggerToRecipients(recipients: string[], conversationId: string, businessId: string, recipientIndex: number = 0) {
+		if(recipients.length <= recipientIndex) {
 			return;
 		}
 
-		const recipientConnectionData = this.socketService.getConnectionByUserId(conversation.recipients[recipientIndex], true);
+		const recipientConnectionData = this.socketService.getConnectionByUserId(recipients[recipientIndex], businessId, true);
 
 		if(recipientConnectionData) {
-			await this.socketService.emitEvent(recipientConnectionData.connection, "conversation/update", { conversationId: conversation._id });
+			await this.socketService.emitEvent(recipientConnectionData.connection, "conversation/update", { conversationId });
 		}
 
-		return this.sendUpdateConversationTriggerToRecipients(conversation, recipientIndex + 1);
+		return this.sendUpdateConversationTriggerToRecipients(recipients, conversationId, businessId, recipientIndex + 1);
 	}
 
 	async sendUserConnectionMessage(conversation: IConversation, user: IUser) {
@@ -537,6 +557,9 @@ export class ConversationService {
 
 		conversation.isConversationWaitingStaff = false;
 		conversation.isConversationSupportedByStaff = true;
+		conversation.messages.reverse();
+		conversation.messages = conversation.messages.slice(0, 25);
+		conversation.messages.reverse()
 		
 		if(!conversation.recipients.includes(staffId)) {
 			conversation.recipients.push(staffId);
@@ -544,7 +567,7 @@ export class ConversationService {
 
 		await conversation.save();
 
-		await this.sendUpdateConversationTriggerToRecipients(conversation);
+		await this.sendUpdateConversationTriggerToRecipients(conversation.recipients, conversation._id, user.businessId);
 		await this.sendUserConnectionMessage(conversation, user);
 
 		if(liveAgentSettings.liveChatDuration.enabled) {
@@ -552,7 +575,7 @@ export class ConversationService {
 			timer = timer * 1000 * 60;
 
 			setTimeout(() => {
-				this.endConversationSupportingByStaff(conversation._id, user, generalSettings);
+				this.endConversationSupportingByStaff(conversation._id, user);
 			}, timer);
 		}
 
@@ -561,15 +584,18 @@ export class ConversationService {
 		return this.fillConversation(conversation, user);
 	}
 
-	async endConversationSupportingByStaff(conversationId: string, user: IUser, generalSettings: IGeneralSettings) {
+	async endConversationSupportingByStaff(conversationId: string, user: IUser) {
 		const conversation = await this.findConversationById(conversationId, user);
 
 		conversation.isConversationWaitingStaff = false;
 		conversation.isConversationSupportedByStaff = false;
+		conversation.messages.reverse();
+		conversation.messages = conversation.messages.slice(0, 25);
+		conversation.messages.reverse()
 		
 		await conversation.save();
 
-		await this.sendUpdateConversationTriggerToRecipients(conversation);
+		await this.sendUpdateConversationTriggerToRecipients(conversation.recipients, conversation._id, user.businessId);
 		await this.sendUserDisconnectionMessage(conversation, user);
 
 		return this.fillConversation(conversation, user);

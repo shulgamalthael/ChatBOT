@@ -81,6 +81,6 @@ export class ConversationController {
 		@Query('conversationId') conversationId: string, 
 		@Cookies('wlc_gs') generalSettings: IGeneralSettings,
 	) {
-		return this.conversationService.endConversationSupportingByStaff(conversationId, user, generalSettings);
+		return this.conversationService.endConversationSupportingByStaff(conversationId, user);
 	}
 }

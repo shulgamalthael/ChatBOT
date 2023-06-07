@@ -1,5 +1,5 @@
 /* @nest.js */
-import { Controller, Post, Get, Body, Res, Request, HttpCode, HttpStatus, Param, Query } from "@nestjs/common";
+import { Controller, Post, Get, Body, Res, Response, HttpCode, HttpStatus, Param, Query } from "@nestjs/common";
 
 /* @dto */
 import { UserDto } from "./dto/user.dto";
@@ -15,7 +15,7 @@ import { Cookies, UserCookies } from "utils/decorators/Cookie";
 
 const spawnStaff = (response: IResponse) => {
 	const _id = generateId();
-	const username = `guest#${_id.slice(0, 4)}`;
+	const username = `staff#${_id.slice(0, 4)}`;
 
 	const data = {
 		_id,
@@ -46,18 +46,18 @@ export class UserController {
 	@HttpCode(HttpStatus.OK)
 	@Get('/byId/:id')
 	getOnlineUser(@Param('id') id: string, @UserCookies() user: IUser) {
-		return this.userService.getUserById(id, user);
+		return this.userService.getUserById(id, user.businessId);
 	}
 
 	@HttpCode(HttpStatus.OK)
 	@Get('/list')
-	getOnlineUsersList(@Query('offset') offset: string) {
-		return this.userService.getUsersList(offset);
+	getOnlineUsersList(@Query('offset') offset: string, @UserCookies() user: IUser) {
+		return this.userService.getUsersList(offset, user.businessId);
 	}
 
 	@Get('/staff/list')
-	getStaffList(@Query('offset') offset: string) {
-		return this.userService.getStaffList(offset);
+	getStaffList(@Query('offset') offset: string, @UserCookies() user: IUser) {
+		return this.userService.getStaffList(offset, user.businessId);
 	}
 
 	@HttpCode(HttpStatus.CREATED)
@@ -111,4 +111,24 @@ export class UserController {
 
 		return response.json(newUser);
 	}
+
+	@Get("/role/change")
+	async changeUserRole(@UserCookies() user: IUser, @Query('role') role: string, @Response() response: IResponse) {
+		const updatedUser = await this.userService.changeUserRole(user._id, role);
+
+		if(updatedUser.role === "guest") {
+			response.clearCookie('wlc_gud');
+			response.clearCookie('wlc_cud');
+			response.cookie('wlc_gud', JSON.stringify(updatedUser))
+		}
+
+		if(updatedUser.role !== "guest") {
+			response.clearCookie('wlc_gud');
+			response.clearCookie('wlc_cud');
+			response.cookie('wlc_cud', JSON.stringify(updatedUser))
+		}
+
+		return response.json(updatedUser);
+	}
+
 }

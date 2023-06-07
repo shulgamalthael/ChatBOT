@@ -139,8 +139,10 @@ export const useBotSettings = create<IBotSettingsState>((set, get): IBotSettings
 			}
 			const response = await saveBOTAvatarApi(formData);
 
-			if(response.isFetched) {
-				return;
+			console.log('responseresponseresponseresponseresponseresponseresponseresponseresponseresponseresponseresponseresponseresponseresponseresponseresponse', { response })
+
+			if(response.isFetched && response.data) {
+				set({ generalSettings: response.data });
 			}
 		}
 	}

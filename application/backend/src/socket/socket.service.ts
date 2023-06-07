@@ -26,7 +26,6 @@ import { Connections, IConnectedUser, IUserConnection } from './interfaces/conne
 import { IGenericObjectType } from '../../utils/interfaces/genericObjectType';
 import { UserService } from '../user/user.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { Connection } from 'mongoose';
 
 @Injectable()
 export class SocketService {
@@ -75,7 +74,7 @@ export class SocketService {
 
 		let recipientsUserData: IConnectedUser[] = [];
 
-		const senderData = await this.userService.getUserById(message.senderId || user._id, user); 
+		const senderData = await this.userService.getUserById(message.senderId || user._id, user.businessId); 
 
 		recipients.forEach((recipient) => {
 			const connectionsMapArray = Object.values(this.connections);
@@ -137,87 +136,11 @@ export class SocketService {
 		return newMessage;
 	}
 
-	async sendGreeting(user: IUser, conversationId: string) {
-		const userConnection = this.getConnectionByUserId(user._id, true);
-		const commandsList = await this.botService.getCommandsList(user);
-
-		if(!userConnection || !conversationId) {
-			// throw new HttpException(`User ${user.username} does not exist!`, HttpStatus.BAD_REQUEST);
-			return false;
-		}
-
-		const defaultGreetingCommand = {
-			_id: generateId(),
-			type: 'greeting',
-			responsesList: [
-				{
-					_id: generateId(),
-					title: "Welcome to WellnessLiving!",
-				},
-				{
-					_id: generateId(),
-					title: "How can I help You?"
-				}
-			],
-			menuOptionsList: [],
-		};
-
-		const greetingCommand = commandsList.find((command) => {
-			return /greeting/i.test(command.type);
-		}) || defaultGreetingCommand;
-
-		const sendResponsesList = async (responseIndex: number = 0) => {
-			if(greetingCommand.responsesList.length <= responseIndex) {
-				return;
-			}
-
-			const response = greetingCommand.responsesList[responseIndex];
-			
-			await this.sendConversationMessageFromClientToRecipient(
-				userConnection.connection,
-				{
-					conversationId,
-					text: response.title,
-					recipients: [user._id],
-					senderId: user.businessId,
-				},
-			);
-
-			return await sendResponsesList(responseIndex + 1);
-		}
-
-		await sendResponsesList();
-
-		const sendMenuOptions = async (menuOptionIndex: number = 0) => {
-			if(greetingCommand.menuOptionsList.length <= menuOptionIndex) {
-				return;
-			}
-
-			const menuOption = greetingCommand.menuOptionsList[menuOptionIndex];
-
-			await this.sendConversationMessageFromClientToRecipient(
-				userConnection.connection,
-				{
-					conversationId,
-					text: menuOption.title,
-					link: menuOption.link,
-					recipients: [user._id],
-					isCommandMenuOption: true,
-					senderId: user.businessId, 
-				},
-			);
-
-			return await sendMenuOptions(menuOptionIndex + 1);
-		}
-
-		await sendMenuOptions();
-	}
-
 	async sendConversationMessageFromClientToRecipient(connection: Socket, inputMessage: IInputMessageProps) {
 		let cookies = cookie.parse(connection.handshake.headers.cookie || '{}');
 		const businessId = cookies['wlc_bid'];
-		const currentUserData = this.getUserByConnectionId(connection.id);
-		const generalSettings = await this.botService.getGeneralSettings(currentUserData);
+		const currentUserData = this.getUserByConnectionId(connection.id, businessId);
+		const generalSettings = await this.botService.getGeneralSettings(currentUserData.businessId);
 		currentUserData.businessId = currentUserData.businessId || businessId;
 
 		const filteredRecipientsList = inputMessage.recipients.reduce((acc, recipient) => {
@@ -307,15 +230,17 @@ export class SocketService {
 
 		delete this.connections[connection.id];
 		this.notificateAllUsersAboutNewDisconnection(connection.id);
-		this.notificationService.removeStaffAwaitionNotificationBySenderId(userCookieFile._id);
+		this.notificationService.removeStaffAwaitionNotificationBySenderId(userCookieFile._id, userCookieFile.businessId);
 		console.log('connection', `| ${userCookieFile.username} | ${connection.id} | disconnected, online: ${this.getUsersCount()}`);
 
 		return true;
 	}
 
-	getUsersList(): IConnectedUser[] {
+	getUsersList(businessId: string): IConnectedUser[] {
 		const connections = Object.values(this.connections);
-		return connections.map((connection) => connection.userData);
+		return connections
+			.filter((connection) => connection.userData.businessId === businessId)
+			.map((connection) => connection.userData);
 	}
 
 	getAllUserConnectionInstances(userId: string) {
@@ -325,9 +250,14 @@ export class SocketService {
 		return users;
 	}
 
-	getUserByConnectionId(connectionId: string, skipException?: boolean) {
+	getUserByConnectionId(connectionId: string, businessId: string, skipException?: boolean) {
 		const connections = Object.values(this.connections);
-		const user = connections.find((connection) => connection.connection.id === connectionId);
+		const user = connections.find((connection) => {
+			return(
+				connection.connection.id === connectionId &&
+				connection.userData.businessId === businessId
+			);
+		});
 
 		if(!user && !skipException) {
 			throw new HttpException(`user ${connectionId} not found`, HttpStatus.NOT_FOUND);
@@ -342,6 +272,9 @@ export class SocketService {
 
 	getUserById(userId: string, skipException?: boolean): IConnectedUser | null {
 		const connections = Object.values(this.connections);
+
+		console.log({ connections: connections.map((connection) => connection.userData )});
+
 		let user = connections.find((connection) => connection.userData._id === userId);
 
 		if(!user && !skipException) {
@@ -355,9 +288,14 @@ export class SocketService {
 		return null;
 	}
 
-	getConnectionByUserId(userId: string, skipException?: boolean): IUserConnection | null {
+	getConnectionByUserId(userId: string, businessId: string, skipException?: boolean): IUserConnection | null {
 		const connections = Object.values(this.connections);
-		const user = connections.find((connection) => connection.userData._id === userId);
+		const user = connections.find((connection) => {
+			return(
+				connection.userData._id === userId &&
+				connection.userData.businessId === businessId
+			);
+		});
 
 		if(!user && !skipException) {
 			throw new HttpException(`user ${userId} not found`, HttpStatus.NOT_FOUND);
@@ -370,10 +308,33 @@ export class SocketService {
 		return null;
 	}
 
-	getStaffList() {
+	getStaffList(businessId: string) {
 		const connections = Object.values(this.connections);
-		const staffList = connections.filter((connection) => connection.userData.role === "staff");
+		const staffList = connections.filter((connection) => {
+			return (
+				connection.userData.role === "staff" && 
+				connection.userData.businessId === businessId
+			)
+		});
 
 		return staffList;
+	}
+
+	changeUserRole(userId: string, role: string) {
+		const connections = Object.entries(this.connections);
+		let user;
+
+		this.connections = connections.reduce((acc, entries) => {
+			acc[entries[0]] = entries[1];
+
+			if(entries[1].userData._id === userId) {
+				acc[entries[0]].userData.role = role;
+				user = acc[entries[0]].userData;
+			}
+
+			return acc;
+		}, {});
+
+		return user;
 	}
 }

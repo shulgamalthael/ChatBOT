@@ -10,7 +10,7 @@ services:
             - ./backend/mongo/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
     nest:
         build:
-            context: ./nest
+            context: ./application
         ports:
             - 4488:4488
             - 4489:4488

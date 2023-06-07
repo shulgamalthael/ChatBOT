@@ -94,13 +94,17 @@ export class NotificationsService {
             throw new HttpException(`Notification data is wrong! Missing \"id\" field!`, HttpStatus.BAD_REQUEST);
         }
 
-        await this.notificationsModel.deleteMany({ conversationId: notification.conversationId, actionType: "conversationStaffAwaition" });
+        const conversation = await this.conversationService.findConversationByIdIgnoreBelonging(notification.conversationId);
 
-        const staffList = await this.userService.getFullStaffList();
+        if(conversation) {
+            await this.notificationsModel.deleteMany({ conversationId: notification.conversationId, actionType: "conversationStaffAwaition" });
 
-        await this.sendMenyNotificationsListUpdateTriggers(staffList);
+            const staffList = await this.userService.getFullStaffList(conversation.businessId);
 
-        return this.conversationService.connectStaffToConversation(notification.conversationId, notification.to);
+            await this.sendMenyNotificationsListUpdateTriggers(staffList);
+
+            return this.conversationService.connectStaffToConversation(notification.conversationId, notification.to);
+        }
     }
 
     async declineNotification(notification: INotification) {
@@ -108,46 +112,54 @@ export class NotificationsService {
             throw new HttpException(`Notification data is wrong! Missing \"id\" field!`, HttpStatus.BAD_REQUEST);
         }
 
-        await this.notificationsModel.deleteMany({ conversationId: notification.conversationId, actionType: "conversationStaffAwaition" });
+        const conversation = await this.conversationService.findConversationByIdIgnoreBelonging(notification.conversationId);
 
-        if(notification.actionType === "conversationStaffAwaition" && notification.staffList.length === 1 || notification.staffList.length === 0) {
-            const staffList = await this.userService.getFullStaffList();
+        if(conversation) {
+            await this.notificationsModel.deleteMany({ conversationId: notification.conversationId, actionType: "conversationStaffAwaition" });
 
-            const staffIds = staffList.map((staff) => staff._id);
+            if(notification.actionType === "conversationStaffAwaition" && notification.staffList.length === 1 || notification.staffList.length === 0) {
+                const staffList = await this.userService.getFullStaffList(conversation.businessId);
 
-            const notifications = staffList.map((staff) => {
-                const newNotification = JSON.parse(JSON.stringify(notification));
-                newNotification.to = staff._id;
-                newNotification.staffList = staffIds;
+                const staffIds = staffList.map((staff) => staff._id);
 
-                return newNotification;
-            });
+                const notifications = staffList.map((staff) => {
+                    const newNotification = JSON.parse(JSON.stringify(notification));
+                    newNotification.to = staff._id;
+                    newNotification.staffList = staffIds;
 
-            const sendManyNotifications = async (notificationIndex: number = 0) => {
-                if(notifications.length <= notificationIndex) {
-                    return;
+                    return newNotification;
+                });
+
+                const sendManyNotifications = async (notificationIndex: number = 0) => {
+                    if(notifications.length <= notificationIndex) {
+                        return;
+                    }
+
+                    await this.addNotificationByUserId(notifications[notificationIndex], staffList[notificationIndex]);
+
+                    return sendManyNotifications(notificationIndex + 1);
                 }
 
-                await this.addNotificationByUserId(notifications[notificationIndex], staffList[notificationIndex]);
-
-                return sendManyNotifications(notificationIndex + 1);
+                await sendManyNotifications();
             }
-
-            await sendManyNotifications();
         }
         
     }
 
-    async removeStaffAwaitionNotificationBySenderId(senderId: string) {
+    async removeStaffAwaitionNotificationBySenderId(senderId: string, businessId: string) {
         if(!senderId) {
             throw new HttpException(`Wrong senderId: ${senderId}!`, HttpStatus.BAD_REQUEST);
         }
 
-        const staffList = await this.userService.getFullStaffList();
+        const senderData = await this.userService.getUserById(senderId, businessId, true);
 
-        this.sendMenyNotificationsListUpdateTriggers(staffList);
+        if(senderData) {
+            const staffList = await this.userService.getFullStaffList(businessId);
 
-        await this.notificationsModel.deleteMany({ from: senderId, actionType: "conversationStaffAwaition" });
+            this.sendMenyNotificationsListUpdateTriggers(staffList);
+
+            await this.notificationsModel.deleteMany({ from: senderId, actionType: "conversationStaffAwaition" });
+        }
     }
 
     async removeStaffAwaitionNotificationsByConversationId(conversationId: string) {
@@ -155,11 +167,15 @@ export class NotificationsService {
             throw new HttpException(`Wrong conversationId: ${conversationId}!`, HttpStatus.BAD_REQUEST);
         }
 
-        const staffList = await this.userService.getFullStaffList();
+        const conversation = await this.conversationService.findConversationByIdIgnoreBelonging(conversationId);
 
-        this.sendMenyNotificationsListUpdateTriggers(staffList);
+        if(conversation) {
+            const staffList = await this.userService.getFullStaffList(conversation.businessId);
 
-        await this.notificationsModel.deleteMany({ conversationId, actionType: "conversationStaffAwaition" });
+            this.sendMenyNotificationsListUpdateTriggers(staffList);
+
+            await this.notificationsModel.deleteMany({ conversationId, actionType: "conversationStaffAwaition" });
+        }
     }
 
     async sendMenyNotificationsListUpdateTriggers(users: IUser[], userIndex: number = 0) {

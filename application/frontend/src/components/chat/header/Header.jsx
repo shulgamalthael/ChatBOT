@@ -1,5 +1,5 @@
 /* @react */
-import React, { memo } from "react";
+import { memo, useState } from "react";
 
 /* @stylesheet */
 import "./header.css";
@@ -9,10 +9,12 @@ import CompanionName from "./CompanionName";
 import CompanionAvatar from "../../common/CompanionAvatar";
 
 /* @stores */
+import { useUserStore } from "../../../stores/user/user";
 import { useWindows } from "../../../stores/windows/windows";
 import { useConversationsStore } from "../../../stores/conversations/conversations";
 import { useNotificationsStore } from "../../../stores/notifications/notificationsStore";
-import { useUserStore } from "../../../stores/user/user";
+import Switch from "../../common/Switch";
+import WLSpinner from "../../common/wlSpinner/WLSpinner";
 
 const HeaderCompanionAvatar = memo(() => {
 	console.log("Header Companion Avatar Rendered!");
@@ -48,18 +50,20 @@ const HeaderMenuIcon = () => {
 	const canShowMainMenu = useWindows(state => state.mainMenuState.show);
 	const toggleMainMenuVisibility = useWindows(state => state.toggleMainMenuVisibility);
 
-	const role = userData.role;
+	const role = userData?.role;
 
-	if(role === "user" || role === "guest") {
-		return null;
-	}
+	const baseIndicatorClassName = "header-menu-indicator";
+	const indicatorClassName = role === "user" || role === "guest"
+		? 	`${baseIndicatorClassName} hidden`
+		: 	baseIndicatorClassName
+	;
 
 	console.log("Header Menu Icon Rendered!");
 
 	const iconClass = canShowMainMenu ? "chat-icon-close relative" : "chat-icon-burger relative";
 
 	return(
-		<div onClick={toggleMainMenuVisibility} className="header-menu-indicator">
+		<div onClick={toggleMainMenuVisibility} className={indicatorClassName}>
 			<i className={iconClass}>
 				<UnreadedMessagesIndicator />
 			</i>
@@ -80,12 +84,37 @@ const HeaderCompanionBlock = () => {
 	)
 }
 
+const RoleSwitch = () => {
+	const userData = useUserStore((state) => state.userData);
+	const changeUserRole = useUserStore((state) => state.changeUserRole);
+	const isUserDataFetching = useUserStore((state) => state.isUserDataFetching);
+
+	const changeIsStaffCallback = (value) => {
+		changeUserRole(value ? "staff" : "guest");
+	}
+
+	return(
+		<div className="flex m-auto border-secondary br-15 p-2d5">
+			{isUserDataFetching
+				?	<WLSpinner />
+				:	<Switch 
+						onIndicator="Staff" 
+						offIndicator="Guest"
+						onChange={changeIsStaffCallback}
+						value={userData?.role === "staff"}
+					/>
+			}
+		</div>
+	)
+}
+
 const Header = () => {
 	console.log("Header Rendered!");
 
 	return (
 		<div className="header">
 			<HeaderMenuIcon />
+			<RoleSwitch />
 			<HeaderCompanionBlock />
 		</div>
 	)

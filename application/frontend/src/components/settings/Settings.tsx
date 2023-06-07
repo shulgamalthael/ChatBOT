@@ -9,38 +9,11 @@ import { useWindows } from "../../stores/windows/windows";
 import "./settings.css";
 import Section from "./Section";
 import Input from "../common/Input";
-import { IPage, useBotSettings } from "../../stores/botSettings/botSettingsStore";
+import Switch from "../common/Switch";
 import WLSpinner from "../common/wlSpinner/WLSpinner";
-import ToolTip, { IToolTipProps } from "../common/toolTip/ToolTip";
 import { generateId } from "../../scripts/generateId";
-
-interface ISwitchProps {
-	value: boolean;
-	onChange: (value: boolean) => void;
-}
-
-const Switch: FC<ISwitchProps> = ({ value, onChange }) => {
-	const baseTrackClassName = "chat-switch-track";
-	const trackClassName = value 
-		? `${baseTrackClassName} chat-switch-track-on` 
-		: `${baseTrackClassName} chat-switch-track-off`
-	;
-
-	const onChangeCallback = useCallback(() => {
-		onChange(!value);
-	}, [value, onChange]);
-
-	const stateIndicatorValueMargin = value ? "auto 10px" : "auto calc(100% - 25px)";
-
-	return(
-		<div onClick={onChangeCallback} className="chat-switch-thumb">
-			<div className="chat-switch-stateIndicator">
-				<div className="chat-switch-stateIndicator-value" style={{ margin: stateIndicatorValueMargin }}>{value ? "ON" : "OFF"}</div>
-			</div>
-			<div className={trackClassName}></div>
-		</div>
-	);
-}
+import ToolTip, { IToolTipProps } from "../common/toolTip/ToolTip";
+import { IPage, useBotSettings } from "../../stores/botSettings/botSettingsStore";
 
 const EnablationSwitcher = () => {
 	const isEnabled = useBotSettings(state => state.generalSettings.enabled);

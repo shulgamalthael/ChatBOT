@@ -24,7 +24,7 @@ export class BotController {
 			return response.json(generalSettings);
 		}
 
-		generalSettings = await this.botService.getGeneralSettings(user);
+		generalSettings = await this.botService.getGeneralSettings(user.businessId);
 
 		response.cookie('wlc_gs', JSON.stringify(generalSettings), { sameSite: 'none', secure: true });
 

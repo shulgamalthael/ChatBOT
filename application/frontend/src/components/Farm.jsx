@@ -149,11 +149,17 @@ const BOTFarm = () => {
 }
 
 const UserFarm = () => {
+	const userData = useUserStore((state) => state.userData);
 	const fetchUserData = useUserStore((state) => state.fetchUserData);
+	const updateAuthorizationState = useUserStore((state) => state.updateAuthorizationState);
 
 	useEffect(() => {
 		fetchUserData();
 	}, [fetchUserData]);
+
+	useEffect(() => {
+		updateAuthorizationState();
+	}, [userData, updateAuthorizationState]);
 	
 	console.log("User's Farm Rendered!");
 
@@ -171,6 +177,7 @@ const ConversationsFarm = () => {
 	const queryConversationsList = useConversationsStore((state) => state.queryConversationsList);
 	const readConversationMessages = useConversationsStore((state) => state.readConversationMessages);
 	const createConversationWithBOT = useConversationsStore((state) => state.createConversationWithBOT);
+	const refreshMessagesPagination = useConversationsStore((state) => state.refreshMessagesPagination);
 	const calculateUnreadedMessagesCount = useConversationsStore((state) => state.calculateUnreadedMessagesCount);
 	const updateIsConversationLockedState = useConversationsStore((state) => state.updateIsConversationLockedState);
 	const updateIsConversationWaitingStaffState = useConversationsStore((state) => state.updateIsConversationWaitingStaffState);
@@ -210,6 +217,10 @@ const ConversationsFarm = () => {
 	}, [selectedConversation, hideMainMenu]);
 
 	useEffect(() => {
+		refreshMessagesPagination();
+	}, [selectedConversation, refreshMessagesPagination]);
+
+	useEffect(() => {
 		const isWaitingStaff = selectedConversation?.isConversationWaitingStaff || false;
 		const isSupportedByStaff = selectedConversation?.isConversationSupportedByStaff || false;
 
@@ -222,7 +233,6 @@ const ConversationsFarm = () => {
 	}, [userData, selectedConversation]);
 
 	useEffect(() => {
-		console.log("CONVERSATION ID CHANGED ===>");
 		readConversationMessages();
 	}, [conversationId]);
 

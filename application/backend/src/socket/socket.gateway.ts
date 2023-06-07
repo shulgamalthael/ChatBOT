@@ -12,10 +12,13 @@ import { SocketService } from './socket.service';
 import { IInputMessageProps } from './interfaces/message.interface';
 import { NotificationsService } from '../notifications/notifications.service';
 import { INotification } from 'src/notifications/entities/notifications';
+import { BotService } from 'src/bot/bot.service';
 
 @WebSocketGateway({ transport: ['polling', 'websocket'] })
 export class SocketGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
 	constructor(
+		@Inject(forwardRef(() => BotService))
+		private readonly botService: BotService,
 		@Inject(forwardRef(() => NotificationsService))
 		private readonly notificationsService: NotificationsService,
 		private readonly socketService: SocketService
@@ -42,7 +45,7 @@ export class SocketGateway implements OnGatewayInit, OnGatewayConnection, OnGate
 			return;
 		}
 
-		return this.socketService.sendGreeting(user, message.conversationId);
+		return this.botService.sendGreeting(user, message.conversationId);
 	}
 
 	@SubscribeMessage('conversation/staff/accept')

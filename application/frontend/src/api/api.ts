@@ -102,3 +102,7 @@ export const saveLiveAgentSettingsApi = (liveAgentSettings: ILiveAgentSettings) 
 export const getNewConversationSessionApi = (conversationId: string) => {
 	return request(`/api/conversation/newConversationSession?id=${conversationId}`);
 }
+
+export const changeUserRoleAPI = (role: string) => {
+	return request(`/api/user/role/change?role=${role}`);
+}

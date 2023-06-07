@@ -19,8 +19,15 @@ import { ConversationModule } from './conversation/conversation.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { AuthorizationMiddleware } from './middlewares/authorization.middleware';
 
-const uploadsRootPath = process.env.ENV === "PRODUCTION" ? resolve("backend", "uploads") : resolve("uploads");
-const staticRootPath = process.env.ENV === "PRODUCTION" ? resolve("backend", "frontend_build") : resolve("frontend_build");
+const uploadsRootPath = process.env.ENV === "PRODUCTION" 
+	? 	"./backend/uploads" 
+	: 	resolve("uploads")
+;
+
+const staticRootPath = process.env.ENV === "PRODUCTION" 
+	? 	"./backend/frontend_build" 
+	: 	resolve("frontend_build")
+;
 // const mongodbserverString = process.env.ENV === "PRODUCTION" ? "user1:12345678@mongodb:27017" : "127.0.0.1:27017";
 const mongodbserverString = process.env.ENV === "PRODUCTION" ? "mongodb:27017" : "127.0.0.1:27017";
 const connectionString = `mongodb://${mongodbserverString}/ChatBOT`;
@@ -52,7 +59,7 @@ export class AppModule implements NestModule {
 	configure(consumer: MiddlewareConsumer) {
 		consumer
 			.apply(AuthorizationMiddleware)
-			.forRoutes({ path: "*", method: RequestMethod.ALL })
+			.forRoutes({ path: "/api", method: RequestMethod.ALL })
 		;
 	}
 }
