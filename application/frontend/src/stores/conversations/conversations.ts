@@ -168,7 +168,12 @@ export const useConversationsStore = create<ConversationsState>((set, get): Conv
 	}
 
 	const unlockMessagesPagination = () => {
-		set({ isMessagesPaginationBlocked: false, unlockPaginationInTheNextStep: false });
+		const isMessagesPaginationBlocked = get().isMessagesPaginationBlocked;
+		const unlockPaginationInTheNextStep = get().unlockPaginationInTheNextStep;
+
+		if(isMessagesPaginationBlocked && unlockPaginationInTheNextStep) {
+			set({ isMessagesPaginationBlocked: false, unlockPaginationInTheNextStep: false, messagesPaginationOffset: 1, isLastPaginationPage: false });
+		}
 	}
 
 	const stopBOTConversation = () => {
@@ -198,6 +203,7 @@ export const useConversationsStore = create<ConversationsState>((set, get): Conv
 				draft.selectedConversation = response.data;
 				localStorage.setItem(conversationLocalStorageKeys.isBotConversationStopped, JSON.stringify(false));
 			}));
+			get().refreshMessagesPagination();
 		}
 
 		return true;
@@ -241,11 +247,6 @@ export const useConversationsStore = create<ConversationsState>((set, get): Conv
 		const isLastPaginationPage = get().isLastPaginationPage;
 		const isMessagesListFetching = get().isMessagesListFetching;
 		const isMessagesPaginationBlocked = get().isMessagesPaginationBlocked;
-		const unlockPaginationInTheNextStep = get().unlockPaginationInTheNextStep;
-
-		if(unlockPaginationInTheNextStep) {
-			return unlockMessagesPagination();
-		}
 
 		if(isLastPaginationPage || isMessagesPaginationBlocked) {
 			set({ isMessagesListFetching: false });
@@ -259,9 +260,12 @@ export const useConversationsStore = create<ConversationsState>((set, get): Conv
 		set({ isMessagesListFetching: true });
 
 		const offset = get().messagesPaginationOffset;
+
+		console.log({ offset });
+
 		const { isFetched, data }: { isFetched: boolean, data: IConversation } = await queryConversationByIdAPI(selectedConversation._id, offset + 1);
 
-		if(isFetched && data && Array.isArray(data.messages) && data.messages.length) {
+		if(isFetched && data && Array.isArray(data.messages) && !!data.messages.length) {
 			set(produce(draft => {
 				draft.selectedConversation.messages.push(...data.messages);
 				draft.messagesPaginationOffset += 1;
@@ -498,10 +502,19 @@ export const useConversationsStore = create<ConversationsState>((set, get): Conv
 
 	const calculateUnreadedMessagesCount = () => {
 		const list = get().conversations;
-		if(Array.isArray(list)) {
+		const userData = useUserStore.getState().userData;
+
+		if(Array.isArray(list) && userData) {
 			set(produce((draft) => {
 				draft.unreadedMessagesCount = draft.conversations.reduce((acc: number, _conversation: IConversation) => {
-					acc += _conversation.unreadedMessagesCount || 0;
+					if(userData.role !== "staff" && _conversation.recipients.includes(userData.businessId)) {
+						acc += _conversation.unreadedMessagesCount || 0;
+					}
+
+					if(userData.role === "staff") {
+						acc += _conversation.unreadedMessagesCount || 0;
+					}
+
 					return acc;
 				}, 0);
 			}));
@@ -599,8 +612,8 @@ export const useConversationsStore = create<ConversationsState>((set, get): Conv
 		if(isConversationSupportedByStaff || isConversationLocked) {
 			return;
 		}
-		
-		if(!isConversationWaitingStaff && message.isCommandMenuOption && !message.link) {
+
+		if(!isConversationWaitingStaff && message.isCommandMenuOption) {
 			const socket: Socket | null = useSocketStore.getState().socket;
 			const newMessage: IOutputMessage | null = generateOutputMessage(message.text);
 			

@@ -2,8 +2,8 @@ import { FC, MouseEvent, useCallback } from "react";
 
 interface ISwitchProps {
 	value: boolean;
-	onIndicator: string;
-	offIndicator: string;
+	onIndicator?: string;
+	offIndicator?: string;
 	onChange: (value: boolean) => void;
 }
 

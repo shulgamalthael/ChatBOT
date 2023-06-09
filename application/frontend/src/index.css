@@ -371,10 +371,12 @@
 
 .h-25  {
 	height: 25px;
+	min-height: 25px;
 }
 
 .w-25 {
 	width: 25px;
+	min-width: 25px;
 }
 
 .h-full {
@@ -469,4 +471,8 @@
 
 .h-fit-content {
 	height: fit-content;
+}
+
+.wl-cb-mobile-only {
+	display: none;
 }

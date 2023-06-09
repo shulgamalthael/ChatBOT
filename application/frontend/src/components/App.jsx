@@ -10,11 +10,13 @@ import Chat from "./chat/Chat";
 import Switcher from "./switcher/Switcher";
 import Settings from "./settings/Settings";
 import CloudList from "./common/cloudList/CloudList";
+import { useBotSettings } from "../stores/botSettings/botSettingsStore";
 
 const ChatApplication = () => {
 	const isDeployed = useSettingsStore((state) => state.isDeployed);
+	const isPageAccessed = useBotSettings((state) => state.isPageAccessed);
 
-	if(!isDeployed) {
+	if(!isDeployed || !isPageAccessed) {
 		return null;
 	}
 
@@ -29,14 +31,14 @@ const ChatApplication = () => {
 const App = () => {
 	console.log("App Rendered!");
 
-  return (
+  	return (
 		<React.Fragment>
 			<Farm />
 			<Settings />
 			<CloudList />
 			<ChatApplication />
 		</React.Fragment>
-  );
+  	);
 };
 
 export default App;

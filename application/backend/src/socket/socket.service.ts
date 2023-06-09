@@ -273,8 +273,6 @@ export class SocketService {
 	getUserById(userId: string, skipException?: boolean): IConnectedUser | null {
 		const connections = Object.values(this.connections);
 
-		console.log({ connections: connections.map((connection) => connection.userData )});
-
 		let user = connections.find((connection) => connection.userData._id === userId);
 
 		if(!user && !skipException) {

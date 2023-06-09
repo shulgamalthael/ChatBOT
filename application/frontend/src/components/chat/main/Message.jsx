@@ -22,9 +22,7 @@ const MessageText = memo(({ text }) => {
 	console.log("Text Rendered!");
 
 	return(
-		<div className="message-text">
-			{text}
-		</div>
+		<div className="message-text" dangerouslySetInnerHTML={{ __html: text }}></div>
 	)
 });
 
@@ -74,9 +72,35 @@ const Message = memo(({ message, canShowMenuDescription, hasName, isUser, isLast
 	const messageTag = message.link ? 'a' : 'div';
 	let messageProps = {};
 	
-	if(message.link) {
-		messageProps.href = message.link;
-		messageProps.target = '_blank';
+	// if(message.link) {
+	// 	const trueLink = /^www\./.test(message.link)
+	// 		? 	`http://${message.link}`
+	// 		: 	message.link
+	// 	;
+	// 	messageProps.href = trueLink;
+	// 	messageProps.target = '_blank';
+	// }
+
+	const parseMessage = (text) => {
+		let result = text;
+		let linksExecutedArray = [];
+		if(/(https?:\/\/|www\.|\/)\S+[\w]/g.test(text)) {
+			linksExecutedArray = text.match(/(https?:\/\/|www\.|\/)\S+[\w]/g) || linksExecutedArray;
+		}
+
+		result = linksExecutedArray.reduce((acc, link) => {
+			const trueLink = /^www\./.test(link)
+				? 	`http://${link}`
+				: 	link
+			;
+
+			acc = acc.replace(link, `<a href="${trueLink}" target="_blank">${link}</a>`);
+			
+			console.log({ acc, text });
+			return acc;
+		}, result);
+
+		return result;
 	}
 
 	return(
@@ -87,7 +111,7 @@ const Message = memo(({ message, canShowMenuDescription, hasName, isUser, isLast
 				<div className={messageClassName} onClick={clickCallback}>
 					{React.createElement(messageTag, messageProps, 
 						<React.Fragment>
-							<MessageText text={message.text} date={message.sendedAt} />
+							<MessageText text={parseMessage(message.text)} date={message.sendedAt} />
 							{!message.isCommandMenuOption && (
 								<React.Fragment>
 									<MessageDate date={message.sendedAt} />

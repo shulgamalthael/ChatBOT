@@ -9,7 +9,6 @@ import { useConversationsStore } from "../../../stores/conversations/conversatio
 
 /* @components */
 import Avatar from "../../common/Avatar";
-import NetworkIndicator from "../../common/NetworkIndicator";
 import { useNotificationsStore } from "../../../stores/notifications/notificationsStore";
 import SaveButton from "../../common/SaveButton";
 import CancelButton from "../../common/CancelButton";

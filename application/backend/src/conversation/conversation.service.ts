@@ -1,6 +1,3 @@
-/* @express */
-import { Response } from "express";
-
 /* @nest.js */
 import { InjectModel } from "@nestjs/mongoose";
 import { Injectable, HttpException, HttpStatus, Inject, forwardRef } from "@nestjs/common";
@@ -97,7 +94,7 @@ export class ConversationService {
 		return conversation;
 	}
 
-	async getConversationById(id: string, user: IUser, queryParams: ConversationMessagesPagination, generalSettings) {
+	async getConversationById(id: string, user: IUser, queryParams: ConversationMessagesPagination) {
 		const conversation = await this.findConversationById(id, user);
 
 		let offset = parseInt(queryParams?.offset, 10) || 0;
@@ -137,7 +134,7 @@ export class ConversationService {
 
 			let recipientData = await this.userService.getUserById(conversation.recipients[_index], user.businessId, true);
 
-			if(recipientData) {
+			if(recipientData && !result[recipientData._id]) {
 				result[recipientData._id] = recipientData;
 			}
 
@@ -148,12 +145,22 @@ export class ConversationService {
 
 		const getConversationTitle = (): string => {
 			let recipientsDataList: IConnectedUser[] = Object.values(recipientsDataMap);
-			recipientsDataList = recipientsDataList.filter((recipientData) => recipientData._id !== user._id);
-
+			let isUserSelfConversation = recipientsDataList.filter((recipientData) => recipientData._id !== user._id).length === 0;
+			
 			let title = '';
-			if(!!recipientsDataList.length) {
+			if(isUserSelfConversation) {
 				title += recipientsDataList.reduce((acc, recipientData) => {
 					acc = acc ? `${acc}, ${recipientData.username}` : recipientData.username;
+
+					return acc;
+				}, '');
+			}
+
+			if(!isUserSelfConversation) {
+				title += recipientsDataList.reduce((acc, recipientData) => {
+					if(user._id !== recipientData._id) {
+						acc = acc ? `${acc}, ${recipientData.username}` : recipientData.username;
+					}
 
 					return acc;
 				}, '');
@@ -265,9 +272,17 @@ export class ConversationService {
 		}
 
 		if(!conversationDto.recipients.includes(user.businessId)) {
-			conversation = await this.conversationModel.findOne({
-				recipients: { $all: [user._id, ...conversationDto.recipients], $size: conversationDto.recipients.length + 1 },
-			}).exec();
+			if(conversationDto.recipients.length === 1 && conversationDto.recipients.includes(user._id)) {
+				conversation = await this.conversationModel.findOne({
+					recipients: [user._id, ...conversationDto.recipients],
+				}).exec();
+			}
+
+			if(!conversationDto.recipients.includes(user._id)) {
+				conversation = await this.conversationModel.findOne({
+					recipients: { $all: [user._id, ...conversationDto.recipients], $size: conversationDto.recipients.length + 1 },
+				}).exec();
+			}
 		}
 
 		let conversationData: IConversation;
@@ -366,17 +381,13 @@ export class ConversationService {
 		return updatedConversation.messages.filter((_message) => _message.sender._id !== user._id && !_message.isReaded).length;
 	}
 
-	async getNewConversationSession(conversationId: string, user: IUser, generalSettings: IGeneralSettings) {
+	async getNewConversationSession(conversationId: string, user: IUser) {
 		if(!user._id) {
 			throw new HttpException("Missing user's cookie!", HttpStatus.BAD_REQUEST);
 		}
 
 		if(!conversationId) {
 			throw new HttpException("Missing conversationId parameter!", HttpStatus.BAD_REQUEST);
-		}
-
-		if(!generalSettings) {
-			throw new HttpException("Missing General Settings!", HttpStatus.BAD_REQUEST);
 		}
 
 		const conversation = await this.findConversationById(conversationId, user);
@@ -548,10 +559,8 @@ export class ConversationService {
 		sendConnectionMessage();
 	}
 
-	async startConversationSupportingByStaff(conversationId: string, staffId: string, user: IUser, generalSettings: IGeneralSettings, liveAgentSettings: ILiveAgentSettings) {
-		if(!liveAgentSettings) {
-			throw new HttpException("Missing LiveAgent cookies", HttpStatus.BAD_REQUEST);
-		}
+	async startConversationSupportingByStaff(conversationId: string, staffId: string, user: IUser) {
+		const liveAgentSettings = await this.botService.getLiveAgentSettings(user);
 		
 		const conversation = await this.findConversationById(conversationId, user);
 

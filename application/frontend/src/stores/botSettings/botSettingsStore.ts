@@ -77,6 +77,7 @@ interface ICommandSettings {
 
 interface IBotSettingsState {
 	allowPages: IAllowPages;
+	isPageAccessed: boolean;
 	isCommandsListFetched: boolean;
 	isCommandsListFetching: boolean;
 	isGeneralSettingsFetched: boolean;
@@ -96,6 +97,7 @@ interface IBotSettingsState {
 	saveBOTAvatar: (file: File | null) => void;
 	addCommand: (command: ICommand) => boolean;
 	removeCommand: (commandIndex: number) => void;
+	changePageAccessState: (prop: boolean) => void;
 	toggleEnablationState: (value: boolean) => void;
 	changeShowingChatTimer: (timer: string) => void;
 	changeLiveChatDuration: (value: string) => void;
@@ -420,12 +422,29 @@ export const useBotSettings = create<IBotSettingsState>((set, get): IBotSettings
 	}
 
 	const deleteAllowPage = async (pageId: string) => {
+		if(get().allowPages.list.length <= 1) {
+			return;
+		}
+
 		const response = await deleteAllowPageApi(pageId);
 
 		get().updateAllowListFetchingState(false);
 		if(response.isFetched && Array.isArray(response.data)) {
 			set(produce((draft) => {
 				draft.allowPages.list = response.data;
+			}));
+			get().updateAllowListFetchingState(true);
+
+			return true;
+		}
+
+		if(!response.isFetched) {
+			set(produce((draft: IBotSettingsState) => {
+				const pageIndex = draft.allowPages.list.findIndex((_page) => _page._id === pageId);
+
+				if(pageIndex >= 0) {
+					draft.allowPages.list.splice(pageIndex, 1);
+				}
 			}));
 			get().updateAllowListFetchingState(true);
 
@@ -440,6 +459,7 @@ export const useBotSettings = create<IBotSettingsState>((set, get): IBotSettings
 		const allowPagesList = get().allowPages.list;
 
 		const page = allowPagesList.find((page) => {
+
 			if(pathname === "/" && pathname === page.title && page.isChecked) {
 				return true;
 			}
@@ -562,6 +582,10 @@ export const useBotSettings = create<IBotSettingsState>((set, get): IBotSettings
 		}));
 	}
 
+	const changePageAccessState = (prop: boolean) => {
+		set({ isPageAccessed: prop });
+	}
+
 	return {
 		generalSettings: {
 			enabled: false,
@@ -578,6 +602,7 @@ export const useBotSettings = create<IBotSettingsState>((set, get): IBotSettings
 				duration: 30,
 			},
 		},
+		isPageAccessed: false,
 		isCommandsListFetched: false,
 		isCommandsListFetching: false,
 		isGeneralSettingsFetched: false,
@@ -619,6 +644,7 @@ export const useBotSettings = create<IBotSettingsState>((set, get): IBotSettings
 		getLiveAgentSettings,
 		saveLiveAgentSettings,
 		toggleEnablationState,
+		changePageAccessState,
 		changeLiveChatDuration,
 		changeShowingChatTimer,
 		changeResponseDuration,

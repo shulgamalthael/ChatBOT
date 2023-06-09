@@ -6,14 +6,17 @@ services:
         restart: always
         ports:
             - 27017:27017
-        volumes:
-            - ./backend/mongo/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
     nest:
         build:
             context: ./application
         ports:
             - 4488:4488
             - 4489:4488
+    react:
+        build:
+            context: ./application/frontend
+        ports:
+            - 4487:4487
     nginx:
         restart: always
         build:

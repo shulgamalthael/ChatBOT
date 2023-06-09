@@ -8,7 +8,7 @@ ENV ENV=PRODUCTION
 # ENV PORT=4488
 ENV PROTOCOL=https
 # ENV HOST=localhost
-ENV HOST=2ed5-178-133-109-26.ngrok-free.app
+ENV HOST=63b2-178-133-224-39.ngrok-free.app
 
 # create backend folder
 RUN mkdir -p backend

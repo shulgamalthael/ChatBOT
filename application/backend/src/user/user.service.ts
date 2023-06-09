@@ -44,11 +44,10 @@ export class UserService {
 		}
 
 		const onlineUsersList = this.socketService.getUsersList(businessId);
-		const userDataDocument = this.socketService.getUserById(userId, true);
-		let userData: IUser;
+		let userData: IUser = this.socketService.getUserById(userId, true);
 
-		if(userDataDocument) {
-			userData = fillUserData(userDataDocument);
+		if(userData) {
+			userData = fillUserData(userData);
 		}
 
 		if(userData) {

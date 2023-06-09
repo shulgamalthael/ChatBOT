@@ -11,10 +11,8 @@ import { Request as IRequest, Response as IResponse } from 'express';
 import { ConversationDto } from './dto/conversationDto/ConversationDto';
 import { FindConversationsPageByUserIdDTO } from './dto/conversationDto/FindConversationPageByUserIdDTO';
 import { ConversationMessagesPagination } from './dto/conversationDto/ConversationMessagesPagination';
-import { Cookies, UserCookies } from 'utils/decorators/Cookie';
+import { UserCookies } from 'utils/decorators/Cookie';
 import { IUser } from 'src/user/interfaces/user.interface';
-import { IGeneralSettings } from 'src/bot/interfaces/generalSettings.interface';
-import { ILiveAgentSettings } from 'src/bot/interfaces/liveAgentSettings.interface';
 
 @Controller('api/conversation')
 export class ConversationController {
@@ -24,10 +22,9 @@ export class ConversationController {
 	getConversationById(
 		@Param('id') id: string, 
 		@UserCookies() user: IUser,
-		@Cookies('wlc_gs') generalSettings: IGeneralSettings,
 		@Query() queryParams: ConversationMessagesPagination, 
 	) {
-		return this.conversationService.getConversationById(id, user, queryParams, generalSettings);
+		return this.conversationService.getConversationById(id, user, queryParams);
 	}
 
 	@HttpCode(HttpStatus.OK)
@@ -59,9 +56,8 @@ export class ConversationController {
 	async refreshConversation(
 		@UserCookies() user: IUser,
 		@Query('id') conversationId: string,
-		@Cookies('wlc_gs') generalSettings: IGeneralSettings,
 	) {
-		return this.conversationService.getNewConversationSession(conversationId, user, generalSettings);
+		return this.conversationService.getNewConversationSession(conversationId, user);
 	}
 
 	@Get("/startSupportingByStaff")
@@ -69,17 +65,14 @@ export class ConversationController {
 		@UserCookies() user: IUser,
 		@Query('staffId') staffId: string,
 		@Query('conversationId') conversationId: string, 
-		@Cookies('wlc_gs') generalSettings: IGeneralSettings,
-		@Cookies('wlc_las') liveAgentSettings: ILiveAgentSettings,
 	) {
-		return this.conversationService.startConversationSupportingByStaff(conversationId, staffId, user, generalSettings, liveAgentSettings);
+		return this.conversationService.startConversationSupportingByStaff(conversationId, staffId, user);
 	}
 
 	@Get("/endSupportingByStaff")
 	async endConversationSupportingByStaff(
 		@UserCookies() user: IUser,
 		@Query('conversationId') conversationId: string, 
-		@Cookies('wlc_gs') generalSettings: IGeneralSettings,
 	) {
 		return this.conversationService.endConversationSupportingByStaff(conversationId, user);
 	}

@@ -14,6 +14,8 @@ import WLSpinner from "../common/wlSpinner/WLSpinner";
 import { generateId } from "../../scripts/generateId";
 import ToolTip, { IToolTipProps } from "../common/toolTip/ToolTip";
 import { IPage, useBotSettings } from "../../stores/botSettings/botSettingsStore";
+import { useSettingsStore } from "./settings.store";
+import { useSettingsStore as useGlobalSettingsStore } from "../../stores/settings/settings";
 
 const EnablationSwitcher = () => {
 	const isEnabled = useBotSettings(state => state.generalSettings.enabled);
@@ -522,10 +524,11 @@ const LiveAgentBlock = () => {
 }
 
 const SettingsButton = () => {
-	const showChatBOTSettings = useWindows((state) => state.showChatBOTSettings);
+	const isDeployed = useGlobalSettingsStore((state) => state.isDeployed);
 	const isEnabled = useBotSettings((state) => state.generalSettings.enabled);
+	const showChatBOTSettings = useWindows((state) => state.showChatBOTSettings);
 
-	if(isEnabled) {
+	if(isEnabled && isDeployed) {
 		return null;
 	}
 

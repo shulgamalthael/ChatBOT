@@ -27,7 +27,8 @@ const useSocketStore = create<ISocketStore>((set: Function, get: Function): ISoc
 	const processSocketConnection = () => {
 		console.log('new Socket Connection', new Date().toISOString());
 		let socket = get().socket;
-		if(socket && socket.connected) {
+		if(socket) {
+			socket.removeAllListeners();
 			socket.disconnect();
 		}
 

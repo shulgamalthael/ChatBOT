@@ -1,5 +1,5 @@
 /* @react */
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useState, MouseEvent } from "react";
 
 /* @stores */
 import { useUserStore } from "../../../stores/user/user";
@@ -14,6 +14,7 @@ import Slider from "../../common/Slider/Slider";
 import "./footer.css";
 import SaveButton from "../../common/SaveButton";
 import WLSpinner from "../../common/wlSpinner/WLSpinner";
+import { useBotSettings } from "../../../stores/botSettings/botSettingsStore";
 
 const SoundSlider = () => {
 	console.log("Sound Slider Rendered!");
@@ -95,11 +96,28 @@ const PowerBlock = () => {
 	)
 }
 
+const CloseButton = () => {
+	const hideChat = useSettingsStore((state) => state.hideChat);
+
+	const hideChatCallback = useCallback((e) => {
+		e?.preventDefault();
+		e?.stopPropagation();
+		hideChat();
+	}, [hideChat]);
+
+	return(
+		<div onClick={hideChatCallback} className="wl-cb-mobile-only">
+			<i className="chat-icon-close" />
+		</div>
+	);
+}
+
 const FooterSettings = () => {
 	return(
 		<div className="footer-settings">
 			<VolumeBlock />
 			<PowerBlock />
+			<CloseButton />
 		</div>
 	)
 }

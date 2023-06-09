@@ -35,6 +35,13 @@ export const useSettingsStore = create((set, get: () => {[key: string]: any}) =>
 		}
 	}
 
+	const hideChat = () => {
+		const isOpenned = get().isChatOpened;
+		if(isOpenned) {
+			set({ isChatOpened: false });
+		}
+	}
+
 	const changeVolume = (volume: number) => {
 		set({ volume });
 		localStorage.setItem(settingsLocalStorageKeys.VOLUME, JSON.stringify(volume));
@@ -71,6 +78,7 @@ export const useSettingsStore = create((set, get: () => {[key: string]: any}) =>
 		isChatOpened: false,
 		isAuthorized: false,
 		openChat,
+		hideChat,
 		playAudio,
 		toggleVolume,
 		changeVolume,

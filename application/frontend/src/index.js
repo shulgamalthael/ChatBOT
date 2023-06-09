@@ -19,13 +19,4 @@ root.render(
   </BrowserRouter>
 );
 
-export default function() {
-  if(document && document.head) {
-    const script = document.createElement("script");
-    script.src = "../main.js";
-
-    document.head.append(script);
-  }
-}
-
 initAxios();

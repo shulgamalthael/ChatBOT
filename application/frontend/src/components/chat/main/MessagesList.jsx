@@ -2,7 +2,7 @@
 import Message from "./Message";
 
 /* scripts */
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { useUserStore } from "../../../stores/user/user";
 import WLSpinner from "../../common/wlSpinner/WLSpinner";
 import { useConversationsStore } from "../../../stores/conversations/conversations";
@@ -117,11 +117,16 @@ const MessageBlock = ({ messagesList }) => {
 const MessagesPagination = ({ messagesBlockRef }) => {
 	const isSubbed = useRef(false);
 	const selectedConversation = useConversationsStore((state) => state.selectedConversation);
+	const unlockMessagesPagination = useConversationsStore((state) => state.unlockMessagesPagination);
 	const getMessagesPaginationPage = useConversationsStore((state) => state.getMessagesPaginationPage);
 	const isConversationWaitingStaff = useConversationsStore((state) => state.isConversationWaitingStaff);
 	const messages = selectedConversation?.messages || [];
 
 	const scrollHandlerCallback = useCallback(async (e) => {
+		if(e.target.scrollHeight > e.target.clientHeight) {
+			unlockMessagesPagination();
+		}
+
 		if(e.target.scrollTop === 0) {
 			const isFetched = await getMessagesPaginationPage();
 			if(isFetched) {

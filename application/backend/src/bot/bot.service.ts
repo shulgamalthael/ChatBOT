@@ -30,8 +30,6 @@ require("dotenv").config();
 const siteUrl = getSiteUrl();
 
 const isFile = (path: string): boolean => {
-	console.log({ path, kile: lstatSync(path).isFile() });
-
 	try {
 		return lstatSync(path).isFile();
 	} catch {
@@ -207,7 +205,7 @@ export class BotService {
 			"We will connect You when it will possible.",
 		];
 
-		const generalSettings = await this.getGeneralSettings(user);
+		const generalSettings = await this.getGeneralSettings(user.businessId);
 
 		const commandsList = await this.getCommandsList(user) || [];
 
@@ -229,7 +227,13 @@ export class BotService {
 			return sendLiveAgentDescription(descriptionIndex + 1);
 		}
 
+		let timer = generalSettings.messageSendingTimer || 0;
+		timer = timer * 1000;
+
 		const sendMessageByResponseDurationTimer = async (callback: Function) => {
+
+			console.log({ generalSettings, timer });
+
 			const result = await new Promise((resolve) => {
 				setTimeout(() => {
 					resolve(callback());
@@ -310,9 +314,6 @@ export class BotService {
 				return message.text && trigger.title && new RegExp(message.text, 'i').test(trigger.title);
 			});
 		});
-
-		let timer = generalSettings.messageSendingTimer || 0;
-		timer = timer * 1000;
 
 		const sendRejectMessages = async () => {
 			await this.sendResponseMessage(rejectingCommand.responsesList, conversationId, user);
@@ -484,19 +485,19 @@ export class BotService {
 		
 		if(!generalSettings) {
 			const generalSettings = await this.generateGeneralSettings(body, user);
-			return generalSettings.allowPages;
+			return generateGeneralSettings(generalSettings);
 		}
 
 		generalSettings.allowPages = body.allowPages;
 		const newGeneralSettings = await generalSettings.save();
-		return newGeneralSettings.allowPages;
+		return generateGeneralSettings(newGeneralSettings);
 	}
 
 	async deleteAllowPage(pageId: string, user: IUser) {
 		const generalSettings = await this.generalSettingsModel.findOne({ businessId: user.businessId }).exec();
 
 		if(!generalSettings) {
-			return [];
+			return generateGeneralSettings();
 		}
 
 		const pageIndex = generalSettings.allowPages.findIndex((page) => page._id === pageId);
@@ -504,7 +505,7 @@ export class BotService {
 		if(pageIndex >= 0) {
 			generalSettings.allowPages.splice(pageIndex, 1);
 			const newGeneralSettings = await generalSettings.save();
-			return newGeneralSettings.allowPages;
+			return newGeneralSettings;
 		}
 
 		if(pageIndex < 0) {
@@ -535,21 +536,18 @@ export class BotService {
 		}
 
 		let generalSettingsDocument = await this.generalSettingsModel.findOne({ businessId }).exec();
-		
+
 		let generalSettings: IGeneralSettings;
 		if(generalSettingsDocument) {
-			generalSettings = generateGeneralSettings(generalSettingsDocument);
+			return generateGeneralSettings(generalSettingsDocument);
 		}
 
-		if(!generalSettings) {
-			generalSettings = generateGeneralSettings();
-			generalSettings.businessId = businessId;
-			generalSettingsDocument = await this.generalSettingsModel.create(generalSettings);
-			generalSettings = generateGeneralSettings(generalSettingsDocument);
-			return generalSettings;
-		}
+		generalSettings = generateGeneralSettings();
+		generalSettings.businessId = businessId;
+		generalSettingsDocument = await this.generalSettingsModel.create(generalSettings);
+		generalSettings = generateGeneralSettings(generalSettingsDocument);
 
-		return generateGeneralSettings(generalSettings);
+		return generalSettings;
 	}
 
 	async getLiveAgentSettings(user: IUser) {

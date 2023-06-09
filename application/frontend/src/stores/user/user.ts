@@ -38,7 +38,7 @@ export const useUserStore = create<IUserStore>((set, get): IUserStore => {
 			set(produce((draft) => {
 				draft.userData = response.data;
 				useWindows.getState().hideMainMenu();
-				useSocketStore.getState().processSocketConnection();
+				// useSocketStore.getState().processSocketConnection();
 			}));
 		}
 

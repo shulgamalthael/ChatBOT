@@ -343,10 +343,10 @@ const MenuOptionDetails: FC<IMenuOptionDetailsProps> = ({ menuOption, commandInd
 		editTitleField(e.target.value, menuOptionIndex);
 	}, [menuOptionIndex, editTitleField]);
 
-	const editLinkFieldCallback = useCallback((e: ChangeEvent<HTMLInputElement>) => {
-		e?.stopPropagation();
-		editLinkField(e.target.value, menuOptionIndex);
-	}, [menuOptionIndex, editLinkField]);
+	// const editLinkFieldCallback = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+	// 	e?.stopPropagation();
+	// 	editLinkField(e.target.value, menuOptionIndex);
+	// }, [menuOptionIndex, editLinkField]);
 
 	return(
 		<div className="flex flex-col">
@@ -364,7 +364,7 @@ const MenuOptionDetails: FC<IMenuOptionDetailsProps> = ({ menuOption, commandInd
 					onBlur={editTitleFieldCallback}
 				/>
 			</Label>
-			{menuOption.actionType !== "liveAgentTrigger" && (
+			{/* {menuOption.actionType !== "liveAgentTrigger" && (
 				<React.Fragment>
 					<Label color="secondary" title="Link">
 						<Input
@@ -374,7 +374,7 @@ const MenuOptionDetails: FC<IMenuOptionDetailsProps> = ({ menuOption, commandInd
 						/>
 					</Label>
 				</React.Fragment>
-			)}
+			)} */}
 		</div>
 	);
 };

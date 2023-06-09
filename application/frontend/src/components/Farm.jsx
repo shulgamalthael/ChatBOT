@@ -1,6 +1,6 @@
 
 /* @react */
-import React, { useCallback, useEffect, useMemo } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 
 /* @stores */
@@ -14,6 +14,7 @@ import { useNotificationsStore } from "../stores/notifications/notificationsStor
 import { useWindows } from "../stores/windows/windows";
 
 const DeployingFarm = () => {
+	const isDeployed = useSettingsStore((state) => state.isDeployed);
 	const isAuthorized = useSettingsStore((state) => state.isAuthorized);
 	const generalSettings = useBotSettings((state) => state.generalSettings);
 	const isEnabled = useBotSettings((state) => state.generalSettings.enabled);
@@ -23,7 +24,7 @@ const DeployingFarm = () => {
 
 	useEffect(() => {
 		const isValid = isAuthorized && isGeneralSettingsFetched && isEnabled;
-		
+
 		if(!isValid) {
 			collapseApplication();
 		}
@@ -34,7 +35,7 @@ const DeployingFarm = () => {
 				deployApplication();
 			}, timer);
 		}
-	}, [isEnabled, isAuthorized, isGeneralSettingsFetched]);
+	}, [isEnabled, isDeployed, isAuthorized, isGeneralSettingsFetched]);
 
 	console.log("Deploying Farm Rendered!");
 
@@ -44,19 +45,12 @@ const DeployingFarm = () => {
 const SocketFarm = () => {
 	const socket = useSocketStore((state) => state.socket);
 	const playAudio = useSettingsStore((state) => state.playAudio);
-	const allowPagesList = useBotSettings((state) => state.allowPages.list);
-	const deployApplication = useSettingsStore((state) => state.deployApplication);
 	const queryOnlineUsersList = useUsersStore((state) => state.queryOnlineUsersList);
-	const collapseApplication = useSettingsStore((state) => state.collapseApplication);
-	const checkPageAccess = useBotSettings((state) => state.allowPages.checkPageAccess);
 	const processSocketConnection = useSocketStore((state) => state.processSocketConnection);
-	const processSocketDisconnection = useSocketStore((state) => state.processSocketDisconnection);
 	const processInputNotification = useNotificationsStore((state) => state.processInputNotification);
 	const processInputConversationMessage = useConversationsStore((state) => state.processInputConversationMessage);
 	const processNotificationsListUpdating = useNotificationsStore((state) => state.processNotificationsListUpdating);
 	const queryConversationByIdAndSelectIt = useConversationsStore((state) => state.queryConversationByIdAndSelectIt);
-
-	const location = useLocation();
 
 	console.log("Socket's Farm Rendered!");
 
@@ -101,27 +95,7 @@ const SocketFarm = () => {
 
 	useEffect(() => {
 		processSocketConnection();
-
-		return () => {
-			processSocketDisconnection();
-		}
 	}, []);
-
-	useEffect(() => {
-		const isAccessed = checkPageAccess(location.pathname);
-
-		if(!isAccessed) {
-			collapseApplication();
-		}
-
-		if(isAccessed) {
-			return deployApplication();
-		}
-
-		return () => {
-			collapseApplication();
-		}
-	}, [allowPagesList, location, checkPageAccess]);
 
 	return null;
 }
@@ -167,6 +141,7 @@ const UserFarm = () => {
 }
 
 const ConversationsFarm = () => {
+	const [conversationId, setConversationId] = useState(null);
 	const socket = useSocketStore((state) => state.socket);
 	const userData = useUserStore((state) => state.userData);
 	const hideMainMenu = useWindows((state) => state.hideMainMenu);
@@ -183,8 +158,6 @@ const ConversationsFarm = () => {
 	const updateIsConversationWaitingStaffState = useConversationsStore((state) => state.updateIsConversationWaitingStaffState);
 	const updateIsConversationSupportedByStaff = useConversationsStore((state) => state.updateIsConversationSupportedByStaffState);
 	const updateIsConversationLockedForStaffState = useConversationsStore((state) => state.updateIsConversationLockedForStaffState);
-
-	const conversationId = selectedConversation?._id;
 
 	const UCqueryConversationsList = useCallback(() => {
 		if(userData) {
@@ -218,7 +191,13 @@ const ConversationsFarm = () => {
 
 	useEffect(() => {
 		refreshMessagesPagination();
-	}, [selectedConversation, refreshMessagesPagination]);
+	}, [conversationId, refreshMessagesPagination]);
+
+	useEffect(() => {
+		if(selectedConversation?._id !== conversationId) {
+			setConversationId(selectedConversation?._id || null);
+		}
+	}, [selectedConversation, setConversationId]);
 
 	useEffect(() => {
 		const isWaitingStaff = selectedConversation?.isConversationWaitingStaff || false;
@@ -294,10 +273,17 @@ const GeneralSettingsFarm = () => {
 }
 
 const BotSettingsFarm = () => {
+	const location = useLocation();
+
+	const allowPagesList = useBotSettings((state) => state.allowPages.list);
 	const getCommandsList = useBotSettings((state) => state.getCommandsList);
 	const checkCommandsList = useBotSettings((state) => state.checkCommandsList);
+	const deployApplication = useSettingsStore((state) => state.deployApplication);
+	const collapseApplication = useSettingsStore((state) => state.collapseApplication);
 	const getAllowPagesList = useBotSettings((state) => state.allowPages.getPagesList);
 	const commandsList = useBotSettings((state) => state.commandsSettings.commandsList);
+	const checkPageAccess = useBotSettings((state) => state.allowPages.checkPageAccess);
+	const changePageAccessState = useBotSettings((state) => state.changePageAccessState);
 
 	const getCommandsListCallback = useCallback(async () => {
 		const isFetched = await getCommandsList();
@@ -318,6 +304,18 @@ const BotSettingsFarm = () => {
 	useEffect(() => {
 		getCommandsListCallback();
 	}, [getCommandsListCallback]);
+
+	useEffect(() => {
+		const isAccessed = checkPageAccess(location.pathname);
+
+		if(!isAccessed) {
+			return changePageAccessState(false);
+		}
+
+		if(isAccessed) {
+			changePageAccessState(true);
+		}
+	}, [allowPagesList, location.pathname, checkPageAccess]);
 
 	return null;
 }
@@ -342,9 +340,10 @@ const UnauthorizedPart = () => {
 }
 
 const AuthorizedPart = () => {
+	const socket = useSocketStore((state) => state.socket);
 	const isAuthorized = useSettingsStore((state) => state.isAuthorized);
 
-	if(!isAuthorized) {
+	if(!isAuthorized || !socket) {
 		return null;
 	}
 
@@ -368,11 +367,22 @@ const DeployedPart = () => {
 		<React.Fragment>
 			<BOTFarm />
 			<UsersFarm />
-			<SocketFarm />
 			<CompanionFarm />
 			<ConversationsFarm />
 			<NotificationsFarm />
 		</React.Fragment>
+	)
+}
+
+const SocketConnectionPart = () => {
+	const isAuthorized = useSettingsStore((state) => state.isAuthorized);
+
+	if(!isAuthorized) {
+		return null;
+	}
+
+	return(
+		<SocketFarm />
 	)
 }
 
@@ -384,6 +394,7 @@ const Farm = () => {
 			<DeployedPart />
 			<AuthorizedPart />
 			<UnauthorizedPart />
+			<SocketConnectionPart />
 		</React.Fragment>
 	);
 }

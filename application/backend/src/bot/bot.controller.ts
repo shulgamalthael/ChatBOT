@@ -6,6 +6,7 @@ import { Request as IRequest, Response as IResponse } from "express";
 import { CommandsListDto } from "./dto/commandsListDto";
 import { AllowPagesDto } from "./dto/allowPagesDto";
 import { LiveAgentSettingsDto } from "./dto/LiveAgentSettingsDto";
+import { IGeneralSettings } from "./interfaces/generalSettings.interface";
 
 @Controller("api/bot")
 export class BotController {
@@ -26,8 +27,6 @@ export class BotController {
 
 		generalSettings = await this.botService.getGeneralSettings(user.businessId);
 
-		response.cookie('wlc_gs', JSON.stringify(generalSettings), { sameSite: 'none', secure: true });
-
 		return response.json(generalSettings);
 	}
 
@@ -38,8 +37,6 @@ export class BotController {
 		user = JSON.parse(user);
 
 		const generalSettings = await this.botService.saveGeneralSettings(body, user);
-		response.cookie('wlc_gs', JSON.stringify(generalSettings), { sameSite: 'none', secure: true });
-
 		return response.json(generalSettings);
 	}
 
@@ -60,9 +57,9 @@ export class BotController {
 		let user = cookies['wlc_cud'] || cookies['wlc_gud'] || '{}';
 		user = JSON.parse(user);
 
-		const allowPages = await this.botService.saveAllowPages(body, user);
+		const generalSettings: IGeneralSettings = await this.botService.saveAllowPages(body, user);
 
-		return response.json(allowPages);
+		return response.json(generalSettings.allowPages);
 	}
 
 	@Delete("/allowPages")
@@ -71,9 +68,9 @@ export class BotController {
 		let user = cookies['wlc_cud'] || cookies['wlc_gud'] || '{}';
 		user = JSON.parse(user);
 
-		const allowPages = await this.botService.deleteAllowPage(pageId, user);
+		const generalSettings = await this.botService.deleteAllowPage(pageId, user);
 
-		return response.json(allowPages);
+		return response.json(generalSettings.allowPages);
 	}
 
 	@Get('/commandsList')
@@ -95,8 +92,6 @@ export class BotController {
 		user = JSON.parse(user);
 
 		const generalSettings = await this.botService.saveBOTAvatar(botAvatar, user);
-		response.cookie('wlc_gs', JSON.stringify(generalSettings), { sameSite: 'none', secure: true });
-
 		return response.json(generalSettings);
 	}
 
@@ -117,16 +112,7 @@ export class BotController {
 		let user = cookies['wlc_cud'] || cookies['wlc_gud'] || '{}';
 		user = JSON.parse(user);
 
-		let liveAgentSettings = cookies['wlc_las'] || 'null';
-		liveAgentSettings = JSON.parse(liveAgentSettings);
-
-		if(liveAgentSettings) {
-			return response.json(liveAgentSettings);
-		}
-
-		liveAgentSettings = await this.botService.getLiveAgentSettings(user);
-
-		response.cookie('wlc_las', JSON.stringify(liveAgentSettings), { sameSite: 'none', secure: true });
+		const liveAgentSettings = await this.botService.getLiveAgentSettings(user);
 
 		return response.json(liveAgentSettings);
 	}
@@ -138,8 +124,6 @@ export class BotController {
 		user = JSON.parse(user);
 
 		const liveAgentSettings = await this.botService.saveLiveAgentSettings(body, user);
-
-		response.cookie('wlc_las', JSON.stringify(liveAgentSettings), { sameSite: 'none', secure: true });
 
 		return response.json(liveAgentSettings);
 	}

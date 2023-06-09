@@ -13,6 +13,26 @@
 	background-color: var(--primary-color);
 }
 
+@media screen and (max-height: 600px) and (max-width: 1024px) {
+	.wl-cb-switcher-true {
+		display: none !important;
+	}
+}
+
+@media screen and (min-width: 301px) and (max-width: 500px) {
+	.wl-cb-switcher-true {
+		scale: 75%;
+		right: calc(50% - 200px + calc(50px * 0.75));
+		bottom: calc(50% + calc(330px * 0.75)) !important;
+	}
+}
+
+@media screen and (max-width: 300px) {
+	.wl-cb-switcher-true {
+		display: none !important;
+	}
+}
+
 .wl-cb-switcher:before { 
 	margin: auto;
 	color: var(--secondary-color);

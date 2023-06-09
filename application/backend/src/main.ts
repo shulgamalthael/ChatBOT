@@ -3,6 +3,7 @@ import { AppModule } from './app.module';
 
 /* @nest.js */
 import { NestFactory } from '@nestjs/core';
+import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 
 /* @path */
 import { resolve } from "path";
@@ -29,7 +30,18 @@ const privateKey = readFileSync(`${securityBedPath}/localhost-privateKey4488.pem
 
 const appOptions = {
 	httpsOptions: { key: privateKey, cert: certificate },
-	cors: { origin: ['https://localhost', 'https://localhost:443', 'https://localhost:80', 'https://localhost:3000', 'https://localhost:5000', 'http://127.0.0.1:5500', 'https://localhost:4488'], credentials: true },
+	cors: { origin: [
+			'https://localhost', 
+			'https://localhost:443', 
+			'https://localhost:80', 
+			'https://localhost:3000', 
+			'https://localhost:5000', 
+			'http://127.0.0.1:5500', 
+			'https://localhost:4488',
+			'https://localhost:4001',
+			'https://localhost:4487'
+		], credentials: true 
+	},
 }
 
 const validationPipe = new ValidationPipe({
@@ -52,6 +64,15 @@ async function bootstrap() {
 	app.useStaticAssets(`${appPath}/assets`, { prefix: "/assets" });
 	app.useStaticAssets(`${appPath}/uploads`, { prefix: "/uploads" });
 
-	await app.listen(4488);
+	const options = new DocumentBuilder()
+	.setTitle('WL-ChatBOT')
+	.setDescription('WL ChatBOT application')
+	.setVersion('1.0')
+	.build()
+;
+	const document = SwaggerModule.createDocument(app, options);
+	SwaggerModule.setup('documentation', app, document);
+
+	await app.listen(process.env.PORT || 4488);
 }
 bootstrap();
