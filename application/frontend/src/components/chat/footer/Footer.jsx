@@ -64,6 +64,7 @@ const PowerBlock = () => {
 	const iconClass = isStopped ? "chat-icon-dropdown rotate-270" : "chat-icon-power";
 
 	const isUserAreStaff = userData?.role === "staff";
+	const isUserConversationOwner = selectedConversation?.creator === userData?._id;
 	const isUserAreConversationCreator = userData?._id === selectedConversation?.creator;
 	const isBotConversation = selectedConversation?.recipients?.includes(userData?.businessId);
 
@@ -71,7 +72,7 @@ const PowerBlock = () => {
 		e?.preventDefault();
 		e?.stopPropagation();
 
-		if(isConversationSupportedByStaff && isUserAreStaff) {
+		if(isConversationSupportedByStaff && isUserAreStaff && !isUserConversationOwner) {
 			return endConversationSupportingByStaff();
 		}
 

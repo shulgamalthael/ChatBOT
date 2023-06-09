@@ -8,7 +8,7 @@ ENV ENV=PRODUCTION
 # ENV PORT=4487
 ENV API_PROTOCOL=https
 # ENV API_HOST=localhost
-ENV API_HOST=63b2-178-133-224-39.ngrok-free.app
+ENV API_HOST=e448-178-133-7-196.ngrok-free.app
 
 # copying package.json files
 COPY . .
