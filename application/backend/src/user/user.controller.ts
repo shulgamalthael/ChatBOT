@@ -1,5 +1,5 @@
 /* @nest.js */
-import { Controller, Post, Get, Body, Res, Response, HttpCode, HttpStatus, Param, Query } from "@nestjs/common";
+import { Controller, Post, Get, Body, Res, Response, HttpCode, HttpStatus, Param, Query, Inject, forwardRef } from "@nestjs/common";
 
 /* @dto */
 import { UserDto } from "./dto/user.dto";
@@ -8,10 +8,12 @@ import { UserDto } from "./dto/user.dto";
 import { UserService } from "./user.service";
 
 /* @express */
-import { Request as IRequest, Response as IResponse } from "express";
+import { Response as IResponse } from "express";
 import { generateId } from "utils/scripts/spawner";
 import { IUser } from "./interfaces/user.interface";
 import { Cookies, UserCookies } from "utils/decorators/Cookie";
+import { UserFormFromConversationDto } from "./dto/userFormFromConversationDto";
+import { BotService } from "src/bot/bot.service";
 
 const spawnStaff = (response: IResponse) => {
 	const _id = generateId();
@@ -41,7 +43,31 @@ const spawnStaff = (response: IResponse) => {
 
 @Controller('api/user')
 export class UserController {
-	constructor(private readonly userService: UserService) {}
+	constructor(
+		private readonly userService: UserService,
+		@Inject(forwardRef(() => BotService))
+		private readonly botService: BotService,
+	) {}
+
+	@HttpCode(HttpStatus.OK)
+	@Post('/formDataFromConversation')
+	async acceptUserDataFromConversationForm(@Body() userFormFromConversationDto: UserFormFromConversationDto, @UserCookies() user: IUser, @Response() response: IResponse) {
+		const _user = await this.userService.acceptUserDataFromConversationForm(userFormFromConversationDto, user);
+
+		const role = user.role;
+	
+		if(role === 'guest') {
+			response.cookie('wlc_gud', JSON.stringify(_user));
+		}
+
+		if(role !== 'guest') {
+			response.cookie('wlc_cud', JSON.stringify(_user));
+		}
+
+		await this.botService.sendLiveAgentDescription(userFormFromConversationDto.conversationId, _user);
+
+		return response.json(_user);
+	}
 
 	@HttpCode(HttpStatus.OK)
 	@Get('/byId/:id')
@@ -63,8 +89,8 @@ export class UserController {
 	@HttpCode(HttpStatus.CREATED)
 	@Post('/authorization')
 	async processUserAuthorization(
-		@Res() response: IResponse, 
 		@Body() userDto: UserDto,
+		@Res() response: IResponse, 
 		@UserCookies() user: IUser | undefined,
 		@Cookies('wlc_src') roleSecret: string | undefined,
 		@Cookies('wlc_bid') businessId: string | undefined,
@@ -79,7 +105,7 @@ export class UserController {
 
 		const sendCookie = (name: string, value: any) => {
 			const newValue = typeof value === "string" ? value : JSON.stringify(value);
-			response.cookie(name, newValue, { sameSite: 'none', secure: true })
+			response.cookie(name, newValue, { sameSite: 'none', secure: true });
 		};
 		
 		if(user) {
@@ -130,5 +156,4 @@ export class UserController {
 
 		return response.json(updatedUser);
 	}
-
 }

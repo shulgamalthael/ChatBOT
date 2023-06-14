@@ -5,7 +5,8 @@ import { request } from "./axios";
 import { defaultLimit } from "../constants/params";
 import { IGenericObjectType } from "../interfaces/genericObjectType";
 import { IConversationData } from "../interfaces/conversation.interface";
-import { ICommand, IGeneralSettings, ILiveAgentSettings, IPage } from "../stores/botSettings/botSettingsStore";
+import { ICommand, IGeneralSettings, ILiveAgentSettings, IMailerState, IPage, ITwillioSettings } from "../stores/botSettings/botSettingsStore";
+import { IUserForm } from "../stores/user/user";
 
 export const readNotificationsAPI = () => {
 	return request("/api/notifications/read");
@@ -105,4 +106,24 @@ export const getNewConversationSessionApi = (conversationId: string) => {
 
 export const changeUserRoleAPI = (role: string) => {
 	return request(`/api/user/role/change?role=${role}`);
+}
+
+export const queryTwillioSettingsAPI = () => {
+	return request("/api/bot/twillioSettings");
+}
+
+export const saveTwillioSettingsAPI = (twillioSettings: ITwillioSettings) => {
+	return request(`/api/bot/twillioSettings`, 'POST', twillioSettings);
+}
+
+export const sendTwillioMessageAPI = (twillioMailer: IMailerState) => {
+	return request(`/api/bot/sendTwillioMessage`, 'POST', twillioMailer);
+}
+
+export const sendNodemailerMessageAPI = () => {
+	return request('/api/bot/sendNodemailerMessage');
+}
+
+export const sendUserDataFormFromConversationAPI = (userForm: IUserForm) => {
+	return request('/api/user/formDataFromConversation', 'POST', userForm);
 }

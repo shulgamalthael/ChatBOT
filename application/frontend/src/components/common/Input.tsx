@@ -17,7 +17,7 @@ interface IInputProps {
 const Input: FC<IInputProps> = forwardRef((props, ref) => {
 	const { id, name, min, type, placeholder, inputValue, className, onBlur, onClick, onChange } = props;
 
-	const [value, changeValue] = useState<any>('');
+	const [value, changeValue] = useState("");
 
 	const baseClassName = "option-input flex flex-grow";
 	const inputClassName = className ? `${baseClassName} ${className}` : baseClassName;
@@ -31,19 +31,20 @@ const Input: FC<IInputProps> = forwardRef((props, ref) => {
 
 	const changeValueCallback = useCallback((e: ChangeEvent<HTMLInputElement>) => {
 		const value = Array.isArray(e.target.files) && e.target.files.length
-			? e.target.files[0]
+			? 	e.target.files[0]
 			:	e.target.value
 		;
 
 		changeValue(value);
+
 		if(onChange) {
 			onChange(e);
 		}
-	}, [onChange, changeValue]);
+	}, [onChange]);
 
 	useEffect(() => {
 		changeValue(inputValue);
-	}, [inputValue]);
+	}, [inputValue, changeValue]);
 
 	return(
 		<input
@@ -52,7 +53,7 @@ const Input: FC<IInputProps> = forwardRef((props, ref) => {
 			ref={ref}
 			type={type}
 			name={name}
-			value={value} 
+			value={value}
 			onBlur={onBlur}
 			onClick={clickCallback}
 			placeholder={placeholder}

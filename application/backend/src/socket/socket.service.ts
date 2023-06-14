@@ -69,7 +69,7 @@ export class SocketService {
 		return resultUserCookieFile;
 	}
 
-	async sendMessage(messageConfiguration) {
+	async generateMessage(messageConfiguration) {
 		const { message, conversationId, user, recipients } = messageConfiguration;
 
 		let recipientsUserData: IConnectedUser[] = [];
@@ -99,6 +99,13 @@ export class SocketService {
 			recipients: recipientsUserData
 				.map((recipient) => ({ _id: recipient._id, username: recipient.username })),
 		}
+
+		return { message: newMessage, recipientsUserData };
+	}
+
+	async sendMessage(messageConfiguration) {
+		const { message, conversationId, user } = messageConfiguration;
+		const { message: newMessage, recipientsUserData } = await this.generateMessage(messageConfiguration);
 
 		const savingResult = await this.conversationService.saveConversationMessage(conversationId, user, newMessage);
 
@@ -334,5 +341,25 @@ export class SocketService {
 		}, {});
 
 		return user;
+	}
+
+	changeUserData(user: IUser) {
+		const connections = Object.values(this.connections);
+		const userIndex = connections.findIndex((_user) => _user.userData._id === user._id);
+		
+		if(userIndex >= 0) {
+			const connectedUser: IConnectedUser = {...user, connectionId: connections[userIndex].id };
+			connections.splice(userIndex, 1, {...connections[userIndex], userData: connectedUser });
+
+			this.connections = connections.reduce((acc, connection) => {
+				if(!acc[connection.id]) {
+					acc[connection.id] = connection;
+				}
+
+				return acc;
+			}, {});
+		}
+
+		return connections[userIndex]?.userData || user;
 	}
 }

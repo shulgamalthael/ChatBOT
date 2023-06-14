@@ -9,12 +9,14 @@ services:
     nest:
         build:
             context: ./application
+        restart: always
         ports:
             - 4488:4488
             - 4489:4488
     react:
         build:
             context: ./application/frontend
+        restart: always
         ports:
             - 4487:4487
     nginx:

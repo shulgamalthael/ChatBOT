@@ -155,12 +155,15 @@
 	position: relative;
 	display: flex;
 	height: 25px;
+	min-height: 25px;
 	width: 25px;
+	min-width: 25px;
 	margin: auto 0;
 }
 
 .chat-menu-item-name {
 	flex-grow: 1;
+	overflow: hidden;
 	margin: auto 15px;
 	white-space: nowrap;
 	text-overflow: ellipsis;
@@ -177,9 +180,11 @@
 	display: flex;
 	flex-direction: column;
 	justify-content: center;
-	align-items: flex-end;
-	height: 25px;
-	width: 25px;
+	align-items: center;
+	height: 20px;
+	width: 20px;
+	border-radius: 50%;
+	background-color: red;
 	margin: auto 0 auto auto;
 }
 
@@ -239,13 +244,42 @@
 	width: fit-content;
 }
 
-.message-user {
+.message-companion {
 	background-color: var(--primary-color);
 }
 
-.message-companion {
+.message-user {
+	z-index: 1;
+	overflow: hidden;
 	position: relative;
-	background-color: var(--primary-color);
+	border: 0.25px solid var(--primary-color);
+}
+
+.message-user::before {
+	position: absolute;
+	content: "";
+	z-index: 0;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background-color: var(--secondary-color);
+}
+
+.message-user .message-text {
+	color: var(--primary-color);
+}
+
+.message-user .message-date {
+	color: var(--primary-color);
+}
+
+.message-companion .message-text {
+	color: var(--secondary-color);
+}
+
+.message-companion .message-date {
+	color: var(--secondary-color);
 }
 
 .message-name {
@@ -262,18 +296,16 @@
 	position: relative;
 	font-size: 13px;
 	word-break: break-all;
-	color: var(--secondary-color);
+	/* color: var(--secondary-color); */
 }
 
 .message-date {
-	position: sticky;
 	display: inline-block;
 	bottom: 5px;
 	right: 15px;
 	font-size: 10px;
 	margin-left: 5px;
 	transform: translate(0, -15%);
-	color: var(--secondary-color);
 }
 
 .message-user-last, .message-companion-last {

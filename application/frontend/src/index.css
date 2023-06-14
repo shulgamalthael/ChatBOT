@@ -126,6 +126,10 @@
 	padding: 15px;
 }
 
+.br-full {
+	border-radius: 100%;
+}
+
 .border-primary {
 	border: 0.25px solid var(--primary-color);
 }
@@ -167,6 +171,10 @@
 
 .flex-end {
 	justify-content: flex-end;
+}
+
+.items-center {
+	align-items: center;
 }
 
 .btn {
@@ -286,6 +294,10 @@
 	top: 50%;
 }
 
+.left-55 {
+	left: 55px;
+}
+
 .left-half {
 	left: 50%;
 }
@@ -331,11 +343,11 @@
 }
 
 .ml-5 {
-	margin-left: 15px;
+	margin-left: 5px;
 }
 
 .mr-5 {
-	margin-right: 15px;
+	margin-right: 5px;
 }
 
 .m-auto {
@@ -369,6 +381,11 @@
 	opacity: 1;
 }
 
+.h-10 {
+	height: 10px;
+	min-height: 10px;
+}
+
 .h-25  {
 	height: 25px;
 	min-height: 25px;
@@ -377,6 +394,27 @@
 .w-25 {
 	width: 25px;
 	min-width: 25px;
+}
+
+.w-10 {
+	width: 10px;
+	min-width: 10px;
+}
+
+.bottom-0 {
+	bottom: 0;
+}
+
+.right-0 {
+	right: 0;
+}
+
+.fixed {
+	position: fixed;
+}
+
+.h-screen {
+	height: 100vh;	
 }
 
 .h-full {
@@ -407,6 +445,8 @@
 
 .w-full {
 	width: 100%;
+	min-width: 100%;
+	max-width: 100%;
 }
 
 .chat-icon {

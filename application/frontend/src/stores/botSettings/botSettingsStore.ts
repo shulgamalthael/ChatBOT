@@ -6,9 +6,11 @@ import { MouseEvent } from "react";
 import config from "../../api/config";
 import { generateId } from "../../scripts/generateId";
 import { correctDuplicatedString } from "../../scripts/correctDuplicatedString";
-import { deleteAllowPageApi, getAllowPagesApi, getCommandsListApi, getGeneralSettingsApi, saveAllowPagesListApi, saveBOTAvatarApi, saveCommandsListApi, saveGeneralSettingsApi, getLiveAgentSettingsApi, saveLiveAgentSettingsApi } from "../../api/api";
+import { deleteAllowPageApi, getAllowPagesApi, getCommandsListApi, getGeneralSettingsApi, saveAllowPagesListApi, saveBOTAvatarApi, saveCommandsListApi, saveGeneralSettingsApi, getLiveAgentSettingsApi, saveLiveAgentSettingsApi, saveTwillioSettingsAPI, queryTwillioSettingsAPI, sendTwillioMessageAPI } from "../../api/api";
 
 export const defaultBotAvatar = `${config.baseApiUrl}/uploads/avatars/default/assistant.jpg`;
+
+export interface IMailerState { number: string, message: string };
 
 export interface IPage {
 	_id: string;
@@ -38,9 +40,17 @@ export interface ILiveAgentSettings {
 export interface IGeneralSettings {
 	enabled: boolean;
 	botName: string;
+	businessId?: string;
 	botAvatar: string | null;
 	showingChatTimer: number | null;
 	messageSendingTimer: number | null;
+}
+
+export interface ITwillioSettings {
+	number: string;
+	enabled: boolean;
+	accountSid: string;
+	accountAuthToken: string;
 }
 
 export interface IMenuOption {
@@ -88,6 +98,7 @@ interface IBotSettingsState {
 	isLiveAgentFetching: boolean;
 	commandsSettings: ICommandSettings;
 	generalSettings: IGeneralSettings;
+	twillioSettings: ITwillioSettings;
 	liveAgentSettings: ILiveAgentSettings;
 	checkCommandsList: () => void;
 	addPage: (page: IPage) => void;
@@ -109,13 +120,26 @@ interface IBotSettingsState {
 	updateCommandsListFetchingState: (prop: boolean) => void;
 	updateGeneralSettingsFetchingState: (prop: boolean) => void;
 	changeResponseDuration: (duration: string) => void;
+	changeTwillioEnablationState: (prop: boolean) => void;
+
+	isTwillioSettingsFetched: boolean;
+	isTwillioSettingsFetching: boolean;
+	saveTwillioSettings: () => Promise<void>;
+	changeTwillioNumber: (number: string) => void;
+	changeTwillioAccountSid: (accountSid: string) => void;
 	updateAllowListFetchingState: (prop: boolean) => void;
+	sendTwillioMessage: (mailerState: IMailerState) => void;
+	updateTwillioSettingsFetchingState: (prop: boolean) => void;
+	changeTwillioAccountAuthToken: (accountAuthToken: string) => void;
+
 	updateLiveAgentSettingsFetchingState: (prop: boolean) => void;
 	switchLiveChatDurationEnablationState: (prop: boolean) => void;
 	editCommand: (command: ICommand, commandIndex: number) => void;
 	removeTrigger: (commandIndex: number, triggerIndex: number) => void;
 	removeResponse: (commandIndex: number, responseIndex: number) => void;
+	removeAvatar: () => void;
 	getLiveAgentSettings: () => void;
+	queryTwillioSettings: () => void;
 	saveLiveAgentSettings: () => void;
 	checkIsLiveAgentTriggerExistsForCurrentCommand: (commandIndex: number) => boolean;
 	removeMenuOptionSettings: (commandIndex: number, menuOptionIndex: number) => void;
@@ -123,8 +147,24 @@ interface IBotSettingsState {
 }
 
 export const useBotSettings = create<IBotSettingsState>((set, get): IBotSettingsState => {
+	const removeAvatar = async () => {
+		get().updateGeneralSettingsFetchingState(false);
+		const generalSettings = get().generalSettings;
+		const newGeneralSettings = Object.assign({}, generalSettings, { botAvatar: null });
+		
+		const response = await saveGeneralSettingsApi(newGeneralSettings);
+
+		if(response.isFetched && response.data) {
+			set(produce((draft) => {
+				draft.generalSettings = response.data;
+			}));
+		}
+
+		get().updateGeneralSettingsFetchingState(true);
+	}
+	
 	const changeBotName = (botName: string) => {
-		set(produce(draft => {
+		set(produce((draft) => {
 			draft.generalSettings.botName = botName;
 		}));
 	}
@@ -140,8 +180,6 @@ export const useBotSettings = create<IBotSettingsState>((set, get): IBotSettings
 				}
 			}
 			const response = await saveBOTAvatarApi(formData);
-
-			console.log('responseresponseresponseresponseresponseresponseresponseresponseresponseresponseresponseresponseresponseresponseresponseresponseresponse', { response })
 
 			if(response.isFetched && response.data) {
 				set({ generalSettings: response.data });
@@ -457,8 +495,10 @@ export const useBotSettings = create<IBotSettingsState>((set, get): IBotSettings
 
 	const checkPageAccess = (pathname: string) => {
 		const allowPagesList = get().allowPages.list;
+		console.log('allowPagesList ===>', { allowPagesList });
 
 		const page = allowPagesList.find((page) => {
+			console.log('page, pathname', { page, pathname });
 
 			if(pathname === "/" && pathname === page.title && page.isChecked) {
 				return true;
@@ -586,7 +626,85 @@ export const useBotSettings = create<IBotSettingsState>((set, get): IBotSettings
 		set({ isPageAccessed: prop });
 	}
 
+	const changeTwillioNumber = (number: string) => {
+		set(produce((draft) => {
+			draft.twillioSettings.number = number;
+		}));
+	}
+
+	const changeTwillioEnablationState = (prop: boolean) => {
+		set(produce((draft) => {
+			draft.twillioSettings.enabled = prop;
+		}));
+	}
+
+	const changeTwillioAccountSid = (accountSid: string) => {
+		if(!accountSid) {
+			return;
+		}
+
+		set(produce((draft) => {
+			draft.twillioSettings.accountSid = accountSid;
+		}));
+	}
+
+	const changeTwillioAccountAuthToken = (accountAuthToken: string) => {
+		set(produce((draft) => {
+			draft.twillioSettings.accountAuthToken = accountAuthToken;
+		}));
+	}
+
+	const updateTwillioSettingsFetchingState = (prop: boolean) => {
+		set({ isTwillioSettingsFetched: prop, isTwillioSettingsFetching: !prop });
+	}
+
+	const sendTwillioMessage = async (mailerState: IMailerState) => {
+		const response = await sendTwillioMessageAPI(mailerState);
+
+		return response.isFetched ? response.data : false;
+	}
+
+	const saveTwillioSettings = async () => {
+		get().updateTwillioSettingsFetchingState(false);
+
+		const twillioSettings = get().twillioSettings;
+		const response = await saveTwillioSettingsAPI(twillioSettings);
+
+		if(response.isFetched && response.data) {
+			set(produce((draft) => {
+				draft.twillioSettings = response.data;
+			}));
+		}
+
+		get().updateTwillioSettingsFetchingState(true);
+	}
+
+	const queryTwillioSettings = async () => {
+		get().updateTwillioSettingsFetchingState(false);
+
+		const response = await queryTwillioSettingsAPI();
+
+		if(response.isFetched && response.data) {
+			set({ twillioSettings: response.data });
+		}
+
+		get().updateTwillioSettingsFetchingState(true);
+	}
+
 	return {
+		isPageAccessed: false,
+
+		isTwillioSettingsFetched: false,
+		isTwillioSettingsFetching: false,
+		twillioSettings: {
+			enabled: false,
+			number: "",
+			accountSid: "",
+			accountAuthToken: "",
+		},
+
+		isGeneralSettingsFetched: false,
+		isGeneralSettingsFetching: false,
 		generalSettings: {
 			enabled: false,
 			botName: "Ahil",
@@ -594,6 +712,9 @@ export const useBotSettings = create<IBotSettingsState>((set, get): IBotSettings
 			showingChatTimer: 0,
 			messageSendingTimer: 0,
 		},
+
+		isLiveAgentFetched: false,
+		isLiveAgentFetching: false,
 		liveAgentSettings: {
 			triggerLink: "Talk to a real person",
 			responseDuration: 5,
@@ -602,15 +723,17 @@ export const useBotSettings = create<IBotSettingsState>((set, get): IBotSettings
 				duration: 30,
 			},
 		},
-		isPageAccessed: false,
+
 		isCommandsListFetched: false,
 		isCommandsListFetching: false,
-		isGeneralSettingsFetched: false,
-		isGeneralSettingsFetching: false,
+		commandsSettings: {
+			commandsList: [],
+			isCommandsHasGreeting: false,
+			isCommandsHasRejecting: false
+		},
+
 		isAllowListFetched: false,
 		isAllowListFetching: false,
-		isLiveAgentFetched: false,
-		isLiveAgentFetching: false,
 		allowPages: {
 			list: [{
 				_id: generateId(),
@@ -622,15 +745,11 @@ export const useBotSettings = create<IBotSettingsState>((set, get): IBotSettings
 			deletePage: deleteAllowPage,
 			checkPageAccess: checkPageAccess,
 		},
-		commandsSettings: {
-			commandsList: [],
-			isCommandsHasGreeting: false,
-			isCommandsHasRejecting: false
-		},
 		addPage,
 		checkPage,
 		addCommand,
 		editCommand,
+		removeAvatar,
 		changeBotName,
 		removeCommand,
 		removeTrigger,
@@ -653,6 +772,16 @@ export const useBotSettings = create<IBotSettingsState>((set, get): IBotSettings
 		changeLiveAgentTriggerLink,
 		changeMenuOptionActionType,
 		updateAllowListFetchingState,
+
+		sendTwillioMessage,
+		queryTwillioSettings,
+		saveTwillioSettings,
+		changeTwillioNumber,
+		changeTwillioAccountSid,
+		changeTwillioEnablationState,
+		changeTwillioAccountAuthToken,
+		updateTwillioSettingsFetchingState,
+
 		updateCommandsListFetchingState,
 		updateGeneralSettingsFetchingState,
 		updateLiveAgentSettingsFetchingState,

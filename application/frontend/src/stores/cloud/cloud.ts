@@ -11,6 +11,7 @@ export interface ICloud {
 
 interface ICloudStoreState {
     cloudList: ICloud[];
+    closeAllClouds: () => void;
     closeCloud: (cloudIndex: number) => void;
     closeAllSimilarClouds: (cloudIndex: number) => void;
     addCloud: (cloud: IInputMessage | INotification, type: string) => void;
@@ -21,6 +22,12 @@ export const useCloudStore = create<ICloudStoreState>((set, get): ICloudStoreSta
         set(produce((draft) => {
             const cloudData = { type, data: cloud };
             draft.cloudList.push(cloudData);
+        }));
+    }
+
+    const closeAllClouds = (): void => {
+        set(produce((draft: ICloudStoreState) => {
+            draft.cloudList = [];
         }));
     }
 
@@ -58,6 +65,7 @@ export const useCloudStore = create<ICloudStoreState>((set, get): ICloudStoreSta
         cloudList: [],
         addCloud,
         closeCloud,
+        closeAllClouds,
         closeAllSimilarClouds,
     }
 });

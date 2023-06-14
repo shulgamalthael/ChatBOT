@@ -7,11 +7,11 @@ import { useLocation } from "react-router-dom";
 import { useUserStore } from "../stores/user/user";
 import useSocketStore from "../stores/socket/socket";
 import { useUsersStore } from "../stores/users/users";
+import { useWindows } from "../stores/windows/windows";
 import { useBotSettings } from "../stores/botSettings/botSettingsStore";
 import { audioList, useSettingsStore } from "../stores/settings/settings";
 import { useConversationsStore } from "../stores/conversations/conversations";
 import { useNotificationsStore } from "../stores/notifications/notificationsStore";
-import { useWindows } from "../stores/windows/windows";
 
 const DeployingFarm = () => {
 	const isDeployed = useSettingsStore((state) => state.isDeployed);
@@ -65,7 +65,7 @@ const SocketFarm = () => {
 
 	const processConversationUpdating = (message) => {
 		const parsedMesasge = JSON.parse(message || "null");
-		if(!parsedMesasge.conversationId) {
+		if(!parsedMesasge || !parsedMesasge.conversationId) {
 			return;
 		}
 
@@ -155,6 +155,7 @@ const ConversationsFarm = () => {
 	const refreshMessagesPagination = useConversationsStore((state) => state.refreshMessagesPagination);
 	const calculateUnreadedMessagesCount = useConversationsStore((state) => state.calculateUnreadedMessagesCount);
 	const updateIsConversationLockedState = useConversationsStore((state) => state.updateIsConversationLockedState);
+	const updateIsLastMessageBeingUserForm = useConversationsStore((state) => state.updateIsLastMessageBeingUserForm);
 	const updateIsConversationWaitingStaffState = useConversationsStore((state) => state.updateIsConversationWaitingStaffState);
 	const updateIsConversationSupportedByStaff = useConversationsStore((state) => state.updateIsConversationSupportedByStaffState);
 	const updateIsConversationLockedForStaffState = useConversationsStore((state) => state.updateIsConversationLockedForStaffState);
@@ -203,9 +204,10 @@ const ConversationsFarm = () => {
 		const isWaitingStaff = selectedConversation?.isConversationWaitingStaff || false;
 		const isSupportedByStaff = selectedConversation?.isConversationSupportedByStaff || false;
 
+		updateIsLastMessageBeingUserForm();
 		updateIsConversationWaitingStaffState(isWaitingStaff);
 		updateIsConversationSupportedByStaff(isSupportedByStaff);
-	}, [selectedConversation, updateIsConversationWaitingStaffState, updateIsConversationSupportedByStaff]);
+	}, [selectedConversation, updateIsLastMessageBeingUserForm, updateIsConversationWaitingStaffState, updateIsConversationSupportedByStaff]);
 
 	useEffect(() => {
 		lockBotConversation(userData);
@@ -278,8 +280,7 @@ const BotSettingsFarm = () => {
 	const allowPagesList = useBotSettings((state) => state.allowPages.list);
 	const getCommandsList = useBotSettings((state) => state.getCommandsList);
 	const checkCommandsList = useBotSettings((state) => state.checkCommandsList);
-	const deployApplication = useSettingsStore((state) => state.deployApplication);
-	const collapseApplication = useSettingsStore((state) => state.collapseApplication);
+	const queryTwillioSettings = useBotSettings((state) => state.queryTwillioSettings);
 	const getAllowPagesList = useBotSettings((state) => state.allowPages.getPagesList);
 	const commandsList = useBotSettings((state) => state.commandsSettings.commandsList);
 	const checkPageAccess = useBotSettings((state) => state.allowPages.checkPageAccess);
@@ -292,6 +293,10 @@ const BotSettingsFarm = () => {
 			setTimeout(getCommandsListCallback, 5000);
 		}
 	}, [getCommandsList]);
+
+	useEffect(() => {
+		queryTwillioSettings();
+	}, [queryTwillioSettings]);
 
 	useEffect(() => {
 		getAllowPagesList();
@@ -307,6 +312,8 @@ const BotSettingsFarm = () => {
 
 	useEffect(() => {
 		const isAccessed = checkPageAccess(location.pathname);
+
+		console.log('isAccessed (FARM)', { isAccessed });
 
 		if(!isAccessed) {
 			return changePageAccessState(false);
@@ -343,6 +350,8 @@ const AuthorizedPart = () => {
 	const socket = useSocketStore((state) => state.socket);
 	const isAuthorized = useSettingsStore((state) => state.isAuthorized);
 
+	console.log('isAuthorized ===>', { isAuthorized });
+
 	if(!isAuthorized || !socket) {
 		return null;
 	}
@@ -358,6 +367,8 @@ const AuthorizedPart = () => {
 
 const DeployedPart = () => {
 	const isDeployed = useSettingsStore((state) => state.isDeployed);
+
+	console.log('ISDEPLOYED ===>', { isDeployed });
 
 	if(!isDeployed) {
 		return null;

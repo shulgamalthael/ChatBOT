@@ -3,13 +3,20 @@ import produce from "immer";
 import { create } from "zustand";
 
 /* @api */
-import { authorizeUserAPI, changeUserRoleAPI } from "../../api/api";
-import { useSettingsStore } from "../settings/settings";
-import useSocketStore, { IUserData } from "../socket/socket";
-import { IGenericObjectType } from "../../interfaces/genericObjectType";
+import { IUserData } from "../socket/socket";
 import { useWindows } from "../windows/windows";
+import { useSettingsStore } from "../settings/settings";
+import { IGenericObjectType } from "../../interfaces/genericObjectType";
+import { authorizeUserAPI, changeUserRoleAPI, sendUserDataFormFromConversationAPI } from "../../api/api";
+import { useConversationsStore } from "../conversations/conversations";
 
 export const fakeUserData = { username: 'Nikita', email: 'nikita@nikita.com' };
+
+export interface IUserForm {
+	email: string;
+	username: string;
+	conversationId?: string;
+}
 
 interface IUserStore {
 	userData: IUserData | null;
@@ -20,9 +27,29 @@ interface IUserStore {
 	updateAuthorizationState: () => void;
 	changeUserRole: (role: string) => void;
 	fetchUserData: (userData: IUserData) => void;
+	sendUserData: (userForm: IUserForm) => Promise<void>;
+	updateUserDataFetchingState: (prop: boolean) => void;
 }
 
 export const useUserStore = create<IUserStore>((set, get): IUserStore => {
+	const sendUserData = async (userForm: IUserForm) => {
+		const selectedConversation = useConversationsStore.getState().selectedConversation;
+
+		if(!/^\S+@\S+\.\S+$/.test(userForm.email) || !userForm.username || !selectedConversation) {
+			return;
+		}
+
+		get().updateUserDataFetchingState(false);
+
+		const response = await sendUserDataFormFromConversationAPI({...userForm, conversationId: selectedConversation._id});
+
+		if(response.isFetched && response.data) {
+			set({ userData: response.data });
+		}
+
+		get().updateUserDataFetchingState(true);
+	}
+	
 	const updateUserDataFetchingState = (prop: boolean) => {
 		set({
 			isUserDataFetched: prop,
@@ -66,8 +93,10 @@ export const useUserStore = create<IUserStore>((set, get): IUserStore => {
 		userData: null,
 		isUserDataFetched: false,
 		isUserDataFetching: false,
+		sendUserData,
 		fetchUserData,
 		changeUserRole,
-		updateAuthorizationState
+		updateAuthorizationState,
+		updateUserDataFetchingState,
 	}
 });

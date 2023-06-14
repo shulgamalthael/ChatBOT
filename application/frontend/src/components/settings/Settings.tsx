@@ -12,9 +12,9 @@ import Input from "../common/Input";
 import Switch from "../common/Switch";
 import WLSpinner from "../common/wlSpinner/WLSpinner";
 import { generateId } from "../../scripts/generateId";
+import { sendNodemailerMessageAPI } from "../../api/api";
 import ToolTip, { IToolTipProps } from "../common/toolTip/ToolTip";
 import { IPage, useBotSettings } from "../../stores/botSettings/botSettingsStore";
-import { useSettingsStore } from "./settings.store";
 import { useSettingsStore as useGlobalSettingsStore } from "../../stores/settings/settings";
 
 const EnablationSwitcher = () => {
@@ -118,6 +118,24 @@ const BotAvatar = () => {
 	)
 }
 
+const RemoveAvatarButton = () => {
+	const removeAvatar = useBotSettings((state) => state.removeAvatar);
+	const generalSettings = useBotSettings((state) => state.generalSettings);
+
+	if(!generalSettings.botAvatar) {
+		return null;
+	}
+
+	return(
+		<Input
+			type="button" 
+			onClick={removeAvatar}
+			inputValue="Remove Avatar"
+			className="flex flex-center h-opacity-075 cursor-pointer" 
+		/>
+	)
+}
+
 const BotAvatarField = () => {
 	const [canShowUploader, showUploader] = useState(false);
 	
@@ -135,6 +153,8 @@ const BotAvatarField = () => {
 		showUploader(false);
 	}, [showUploader]);
 
+	sendNodemailerMessageAPI();
+
 	return(
 		<React.Fragment>
 			<BotAvatar />
@@ -142,8 +162,9 @@ const BotAvatarField = () => {
 				type="button" 
 				inputValue="Upload Avatar"
 				onClick={showUploaderCallback}
-				className="flex flex-center h-opacity-075 cursor-pointer" 
+				className="flex flex-center h-opacity-075 cursor-pointer mb-5" 
 			/>
+			<RemoveAvatarButton />
 			{canShowUploader && <Uploader close={closeUploader} save={saveAvatar} />}
 		</React.Fragment>
 	);
@@ -539,6 +560,99 @@ const SettingsButton = () => {
 	)
 }
 
+const TwillioEnablationBlock = () => {
+	const enabled = useBotSettings((state) => state.twillioSettings.enabled);
+	const changeTwillioEnablationState = useBotSettings((state) => state.changeTwillioEnablationState);
+
+	const changeEnablationStateCallback = useCallback((value: boolean) => {
+		changeTwillioEnablationState(value);
+	}, [changeTwillioEnablationState]);
+
+	return(
+		<Label title="Enable Twillio">
+			<Switch value={enabled} onChange={changeEnablationStateCallback} />
+		</Label>
+	);
+}
+
+const TwillioAccountSidBlock = () => {
+	const accountSid = useBotSettings((state) => state.twillioSettings.accountSid);
+	const changeTwillioAccountSid = useBotSettings((state) => state.changeTwillioAccountSid);
+
+	const changeTwillioAccountSidCallback = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+		e?.preventDefault();
+		e?.stopPropagation();
+
+		changeTwillioAccountSid(e.target.value);
+	}, [changeTwillioAccountSid]);
+
+	return(
+		<Label title="Account sid">
+			<Input type="password" inputValue={accountSid} onChange={changeTwillioAccountSidCallback} />
+		</Label>
+	);
+}
+
+const TwillioAccountAuthTokenBlock = () => {
+	const accountAuthToken = useBotSettings((state) => state.twillioSettings.accountAuthToken);
+	const changeTwillioAccountAuthToken = useBotSettings((state) => state.changeTwillioAccountAuthToken);
+	
+	const changeTwillioAccountAuthTokenCallback = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+		e?.preventDefault();
+		e?.stopPropagation();
+
+		changeTwillioAccountAuthToken(e.target.value);
+	}, [changeTwillioAccountAuthToken]);
+
+	return(
+		<Label title="Account auth token">
+			<Input type="password" inputValue={accountAuthToken} onChange={changeTwillioAccountAuthTokenCallback} />
+		</Label>
+	);
+}
+
+const TwillioNumberBlock = () => {
+	const number = useBotSettings((state) => state.twillioSettings.number);
+	const changeTwillioNumber = useBotSettings((state) => state.changeTwillioNumber);
+
+	const changeTwillioNumberCallback = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+		e?.preventDefault();
+		e?.stopPropagation();
+
+		changeTwillioNumber(e.target.value);
+	}, [changeTwillioNumber]);
+
+	return(
+		<Label title="Twillio number">
+			<Input 
+				type="text" 
+				inputValue={number} 
+				onChange={changeTwillioNumberCallback} 
+			/>
+		</Label>
+	)
+}
+
+const TwillioBlock = () => {
+	const saveTwillioSettings = useBotSettings((state) => state.saveTwillioSettings);
+	const isTwillioSettingsFetched = useBotSettings((state) => state.isTwillioSettingsFetched);
+
+	if(!isTwillioSettingsFetched) {
+		return null;
+	}
+
+	return(
+		<Section title="Twillio" save={saveTwillioSettings}>
+			<div className="w-200">
+				<TwillioEnablationBlock />
+				<TwillioAccountSidBlock />
+				<TwillioAccountAuthTokenBlock />
+				<TwillioNumberBlock />
+			</div>
+		</Section>
+	)
+}
+
 const Settings = () => {
 	const hideChatBOTSettings = useWindows((state) => state.hideChatBOTSettings);
 	const canShowChatBOTSettings = useWindows((state) => state.canShowChatBOTSettings);
@@ -560,6 +674,7 @@ const Settings = () => {
 				<AllowPages />
 				<CommandsList />
 				<LiveAgentBlock />
+				<TwillioBlock />
 			</div>
 		</div>
 	);

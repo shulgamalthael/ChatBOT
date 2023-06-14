@@ -8,4 +8,5 @@ export interface IUser {
 	businessId: string;
 	isOnline?: boolean;
 	lastVisitAt: string;
+	connectionId?: string;
 }

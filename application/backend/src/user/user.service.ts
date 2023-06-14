@@ -15,6 +15,7 @@ import { IUser } from "./interfaces/user.interface";
 import { spawnGuest } from "../../utils/scripts/spawner";
 import { SocketService } from "../socket/socket.service";
 import { fillUserData } from "../../utils/scripts/fillUserData";
+import { UserFormFromConversationDto } from "./dto/userFormFromConversationDto";
 
 @Injectable()
 export class UserService {
@@ -236,5 +237,27 @@ export class UserService {
 		}
 
 		throw new HttpException(`User #${userId} not found!`, HttpStatus.BAD_REQUEST);
+	}
+
+	async acceptUserDataFromConversationForm(userFormFromConversationDto: UserFormFromConversationDto, user: IUser) {
+		user.email = userFormFromConversationDto.email;
+		user.username = userFormFromConversationDto.username;
+
+		let _user;
+		
+		try {
+			_user = await this.userModel.findOneAndUpdate({ _id: user._id }, user, { new: true }).exec();
+			return _user.save();
+		} catch {};
+
+		if(!_user) {
+			_user = this.socketService.changeUserData(user);
+		}
+
+		if(!_user) {
+			throw new HttpException(`User ${user._id} does not exist!`, HttpStatus.BAD_REQUEST);
+		}
+
+		return _user || null;
 	}
 }

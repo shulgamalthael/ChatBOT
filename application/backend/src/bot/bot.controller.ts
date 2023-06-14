@@ -7,6 +7,10 @@ import { CommandsListDto } from "./dto/commandsListDto";
 import { AllowPagesDto } from "./dto/allowPagesDto";
 import { LiveAgentSettingsDto } from "./dto/LiveAgentSettingsDto";
 import { IGeneralSettings } from "./interfaces/generalSettings.interface";
+import { UserCookies } from "utils/decorators/Cookie";
+import { IUser } from "src/user/interfaces/user.interface";
+import { TwillioSettingsDto } from "./dto/twillioSettingsDto";
+import { TwillioMailerDto } from "./dto/twillioMailerDto";
 
 @Controller("api/bot")
 export class BotController {
@@ -52,25 +56,21 @@ export class BotController {
 	}
 
 	@Post("/allowPages")
-	async saveAllowPages(@Body() body: AllowPagesDto, @Request() request: IRequest, @Response() response: IResponse) {
+	async saveAllowPages(@Body() body: AllowPagesDto, @Request() request: IRequest) {
 		const cookies = request.cookies;
 		let user = cookies['wlc_cud'] || cookies['wlc_gud'] || '{}';
 		user = JSON.parse(user);
 
-		const generalSettings: IGeneralSettings = await this.botService.saveAllowPages(body, user);
-
-		return response.json(generalSettings.allowPages);
+		return this.botService.saveAllowPages(body, user);
 	}
 
 	@Delete("/allowPages")
-	async deleteAllowPage(@Query('id') pageId: string, @Request() request: IRequest, @Response() response: IResponse) {
+	async deleteAllowPage(@Query('id') pageId: string, @Request() request: IRequest) {
 		const cookies = request.cookies;
 		let user = cookies['wlc_cud'] || cookies['wlc_gud'] || '{}';
 		user = JSON.parse(user);
 
-		const generalSettings = await this.botService.deleteAllowPage(pageId, user);
-
-		return response.json(generalSettings.allowPages);
+		return this.botService.deleteAllowPage(pageId, user);
 	}
 
 	@Get('/commandsList')
@@ -126,5 +126,25 @@ export class BotController {
 		const liveAgentSettings = await this.botService.saveLiveAgentSettings(body, user);
 
 		return response.json(liveAgentSettings);
+	}
+
+	@Get('/twillioSettings')
+	async getTwillioSettings(@UserCookies() user: IUser) {
+		return this.botService.getTwillioSettings(user.businessId);
+	}
+
+	@Post('/twillioSettings')
+	async saveTwillioSettings(@Body() twillioSettingsDto: TwillioSettingsDto, @UserCookies() user: IUser) {
+		return this.botService.saveTwillioSettings(twillioSettingsDto, user.businessId);
+	}
+
+	@Post('/sendTwillioMessage')
+	async sendTwillioMessage(@Body() twillioMailerDto: TwillioMailerDto, @UserCookies() user: IUser) {
+		return this.botService.sendTwillioMessage(twillioMailerDto, user.businessId);
+	}
+
+	@Get('/sendNodemailerMessage')
+	async sendNodemailerMessage() {
+		return this.botService.sendNodemailerMessage();
 	}
 }

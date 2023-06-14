@@ -298,11 +298,12 @@ interface IMenuOptionActionTypeSelectorProps {
 	menuOption: IMenuOption;
 	commandIndex: number;
 	menuOptionIndex: number;
+	isCommandHasTwillioTrigger: boolean;
 	isCommandHasLiveAgentTrigger: boolean;
 	editActionTypeField: (actionType: string, menuOptionIndex: number) => void;
 }
 
-const MenuOptionActionTypeSelector: FC<IMenuOptionActionTypeSelectorProps> = ({ menuOption, commandIndex, menuOptionIndex, isCommandHasLiveAgentTrigger, editActionTypeField }) => {
+const MenuOptionActionTypeSelector: FC<IMenuOptionActionTypeSelectorProps> = ({ menuOption, commandIndex, menuOptionIndex, isCommandHasTwillioTrigger, isCommandHasLiveAgentTrigger, editActionTypeField }) => {
 	const changeMenuOptionActionTypeCallback = useCallback((e: ChangeEvent<HTMLSelectElement>) => {
 		editActionTypeField(e.target.value, menuOptionIndex);
 	}, [commandIndex, menuOptionIndex]);
@@ -321,6 +322,7 @@ const MenuOptionActionTypeSelector: FC<IMenuOptionActionTypeSelectorProps> = ({ 
 				onChange={changeMenuOptionActionTypeCallback}
 			>
 				<option value="liveAgentTrigger" disabled={isCommandHasLiveAgentTrigger}>Live Agent Trigger</option>
+				<option value="twillioMessangerTrigger" disabled={isCommandHasTwillioTrigger}>Twillio Messanger Trigger</option>
 				<option value="messageTrigger" defaultChecked>Message Trigger</option>
 			</select>
 		</Label>
@@ -331,15 +333,17 @@ interface IMenuOptionDetailsProps {
 	menuOption: IMenuOption;
 	commandIndex: number;
 	menuOptionIndex: number;
+	isCommandHasTwillioTrigger: boolean;
 	isCommandHasLiveAgentTrigger: boolean;
 	editLinkField: (value: string, menuOptionIndex: number) => void;
 	editTitleField: (value: string, menuOptionIndex: number) => void;
 	editActionTypeField: (actionType: string, menuOptionIndex: number) => void;
 }
 
-const MenuOptionDetails: FC<IMenuOptionDetailsProps> = ({ menuOption, commandIndex, menuOptionIndex, isCommandHasLiveAgentTrigger, editTitleField, editLinkField, editActionTypeField }) => {
+const MenuOptionDetails: FC<IMenuOptionDetailsProps> = ({ menuOption, commandIndex, menuOptionIndex, isCommandHasTwillioTrigger, isCommandHasLiveAgentTrigger, editTitleField, editLinkField, editActionTypeField }) => {
 	const editTitleFieldCallback = useCallback((e: ChangeEvent<HTMLInputElement>) => {
 		e?.stopPropagation();
+
 		editTitleField(e.target.value, menuOptionIndex);
 	}, [menuOptionIndex, editTitleField]);
 
@@ -355,6 +359,7 @@ const MenuOptionDetails: FC<IMenuOptionDetailsProps> = ({ menuOption, commandInd
 				commandIndex={commandIndex} 
 				menuOptionIndex={menuOptionIndex}
 				editActionTypeField={editActionTypeField}
+				isCommandHasTwillioTrigger={isCommandHasTwillioTrigger}
 				isCommandHasLiveAgentTrigger={isCommandHasLiveAgentTrigger}
 			/>
 			<Label color="secondary" title="Title">
@@ -383,6 +388,7 @@ interface IMenuOptionProps {
 	menuOption: IMenuOption;
 	commandIndex: number;
 	menuOptionIndex: number;
+	isCommandHasTwillioTrigger: boolean;
 	isCommandHasLiveAgentTrigger: boolean;
 	removeMenuOption: (menuOptionIndex: number) => void;
 	editLinkField: (link: string, menuOptionIndex: number) => void;
@@ -390,7 +396,7 @@ interface IMenuOptionProps {
 	editActionTypeField: (actionType: string, menuOptionIndex: number) => void;
 }
 
-const MenuOption: FC<IMenuOptionProps> = memo(({ menuOption, commandIndex, menuOptionIndex, isCommandHasLiveAgentTrigger, editTitleField, editLinkField, removeMenuOption, editActionTypeField }) => {
+const MenuOption: FC<IMenuOptionProps> = memo(({ menuOption, commandIndex, menuOptionIndex, isCommandHasTwillioTrigger, isCommandHasLiveAgentTrigger, editTitleField, editLinkField, removeMenuOption, editActionTypeField }) => {
 	const optionRef = useRef<HTMLDivElement>(null);
 	const removeIconRef = useRef<HTMLDivElement>(null);
 	
@@ -450,6 +456,7 @@ const MenuOption: FC<IMenuOptionProps> = memo(({ menuOption, commandIndex, menuO
 						editTitleField={editTitleField}
 						menuOptionIndex={menuOptionIndex}
 						editActionTypeField={editActionTypeField}
+						isCommandHasTwillioTrigger={isCommandHasTwillioTrigger}
 						isCommandHasLiveAgentTrigger={isCommandHasLiveAgentTrigger}
 					/>
 				:	<div className="flex flex-center flex-grow bg-secondary color-primary overflow-hidden text-ellipsis whitespace-nowrap br-5 cursor-pointer">
@@ -488,11 +495,12 @@ interface IMenuBlock {
 	commandIndex: number;
 	skipMarginBottom?: boolean;
 	menuOptionsList: IMenuOption[];
+	isCommandHasTwillioTrigger: boolean;
 	isCommandHasLiveAgentTrigger: boolean;
 	changeMenuOptionsList: Dispatch<SetStateAction<IMenuOption[]>>;
 }
 
-const MenuBlock: FC<IMenuBlock> = ({ menuOptionsList, commandIndex, isCommandHasLiveAgentTrigger, changeMenuOptionsList, skipMarginBottom }) => {
+const MenuBlock: FC<IMenuBlock> = ({ menuOptionsList, commandIndex, isCommandHasTwillioTrigger, isCommandHasLiveAgentTrigger, changeMenuOptionsList, skipMarginBottom }) => {
 	const [canShowMenuBuilder, showMenuBuilder] = useState(false);
 
 	const saveMenu = useCallback((e: MouseEvent<HTMLElement>) => {
@@ -584,6 +592,7 @@ const MenuBlock: FC<IMenuBlock> = ({ menuOptionsList, commandIndex, isCommandHas
 						editLinkField={editTitleLinkField}
 						removeMenuOption={removeMenuOption}
 						editActionTypeField={editActionTypeField}
+						isCommandHasTwillioTrigger={isCommandHasTwillioTrigger}
 						isCommandHasLiveAgentTrigger={isCommandHasLiveAgentTrigger}
 					/>
 				))}
@@ -610,8 +619,13 @@ const CommandBuilder: FC<ICommandBuilderProps> = ({ close }) => {
 	const [responsesList, changeResponsesList] = useState<IResponse[]>([]);
 	const [menuOptionsList, changeMenuOptionsList] = useState<IMenuOption[]>([]);
 	const canShowTriggerField = type !== "greeting" && type !== "rejecting";
+
 	const isCommandHasLiveAgentTrigger = !!menuOptionsList.find((menuOption) => {
 		return menuOption.actionType === "liveAgentTrigger";
+	});
+
+	const isCommandHasTwillioTrigger = !!menuOptionsList.find((menuOption) => {
+		return menuOption.actionType === "twillioMessangerTrigger";
 	});
 
 	const addCommandCallback = () => {
@@ -683,6 +697,7 @@ const CommandBuilder: FC<ICommandBuilderProps> = ({ close }) => {
 				commandIndex={0}
 				menuOptionsList={menuOptionsList}
 				changeMenuOptionsList={changeMenuOptionsList}
+				isCommandHasTwillioTrigger={isCommandHasTwillioTrigger}
 				isCommandHasLiveAgentTrigger={isCommandHasLiveAgentTrigger}
 			/>
 			<div className="flex flex-btw">
@@ -723,6 +738,10 @@ const Command: FC<ICommandProps> = memo(({ command, commandIndex }) => {
 
 	const isCommandHasLiveAgentTrigger = !!command.menuOptionsList.find((menuOption) => {
 		return menuOption.actionType === "liveAgentTrigger";
+	});
+
+	const isCommandHasTwillioTrigger = !!command.menuOptionsList.find((menuOption) => {
+		return menuOption.actionType === "twillioMessangerTrigger";
 	});
 
 	const editCommand = useBotSettings((state) => state.editCommand);
@@ -883,6 +902,7 @@ const Command: FC<ICommandProps> = memo(({ command, commandIndex }) => {
 								commandIndex={commandIndex}
 								menuOptionsList={command.menuOptionsList}
 								changeMenuOptionsList={changeMenuOptionsList}
+								isCommandHasTwillioTrigger={isCommandHasTwillioTrigger}
 								isCommandHasLiveAgentTrigger={isCommandHasLiveAgentTrigger}
 							/>
 						</React.Fragment>

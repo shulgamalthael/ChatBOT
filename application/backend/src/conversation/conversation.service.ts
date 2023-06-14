@@ -24,10 +24,8 @@ import { FilledConversation, IConversation } from "./interfaces/conversation.int
 import { UserService } from "src/user/user.service";
 import { ConversationDto } from "./dto/conversationDto/ConversationDto";
 import { NotificationsService } from "src/notifications/notifications.service";
-import { IGeneralSettings } from "src/bot/interfaces/generalSettings.interface";
-import { FindConversationsPageByUserIdDTO } from "./dto/conversationDto/FindConversationPageByUserIdDTO";
 import { ConversationMessagesPagination } from "./dto/conversationDto/ConversationMessagesPagination";
-import { ILiveAgentSettings } from "src/bot/interfaces/liveAgentSettings.interface";
+import { FindConversationsPageByUserIdDTO } from "./dto/conversationDto/FindConversationPageByUserIdDTO";
 
 const generateConversation = (conversation: IConversation, user: IUser): IConversation => {
 	return {
@@ -94,7 +92,7 @@ export class ConversationService {
 		return conversation;
 	}
 
-	async getConversationById(id: string, user: IUser, queryParams: ConversationMessagesPagination) {
+	async getConversationById(id: string, user: IUser, queryParams: ConversationMessagesPagination = { offset: '0', limit: '25' }) {
 		const conversation = await this.findConversationById(id, user);
 
 		let offset = parseInt(queryParams?.offset, 10) || 0;
@@ -147,6 +145,10 @@ export class ConversationService {
 			let recipientsDataList: IConnectedUser[] = Object.values(recipientsDataMap);
 			let isUserSelfConversation = recipientsDataList.filter((recipientData) => recipientData._id !== user._id).length === 0;
 			
+			if(conversation.recipients.includes(user.businessId) && conversation.creator === user._id && !conversation.isConversationSupportedByStaff) {
+				return recipientsDataMap[user.businessId].username;
+			}
+
 			let title = '';
 			if(isUserSelfConversation) {
 				title += recipientsDataList.reduce((acc, recipientData) => {
@@ -186,6 +188,10 @@ export class ConversationService {
 		}
 
 		const result: FilledConversation = generateConversation(conversation, user);
+
+		if(result.recipients.includes(user.businessId) && result.creator !== user._id && !result.isConversationSupportedByStaff) {
+			result.unreadedMessagesCount = 0;
+		}
 
 		result.title = getConversationTitle();
 		result.recipientsDataById = recipientsDataMap;
@@ -437,13 +443,34 @@ export class ConversationService {
 			conversation.recipients.push(staffId);
 		}
 
-		conversation.isConversationWaitingStaff = false;
-		conversation.isConversationSupportedByStaff = true;
-		await conversation.save();
-
 		const staffData = this.socketService.getUserById(staffId);
 
-		await this.sendUserConnectionMessage(conversation, staffData);
+		const generalSettings = await this.botService.getGeneralSettings(staffData.businessId);
+
+		conversation.isConversationWaitingStaff = false;
+		conversation.isConversationSupportedByStaff = true;
+
+		const message = {
+			text: `${staffData.username} connected!`,
+			isForce: true,
+			senderId: staffData.businessId,
+			recipients: conversation.recipients,
+			isConversationSupportedByStaff: true,
+		};
+
+		const messageConfiguration = {
+			message, 
+			conversationId,
+			user: staffData,
+			generalSettings,
+			putToDatabase: true,
+			recipients: conversation.recipients.filter((recipient) => recipient !== staffData.businessId),
+		};
+
+		const connectionMessage = await this.socketService.generateMessage(messageConfiguration);
+
+		conversation.messages.push(connectionMessage.message);
+		await conversation.save();
 
 		await this.sendUpdateConversationTriggerToRecipients(conversation.recipients, conversation._id, conversation.businessId);
 
@@ -475,90 +502,6 @@ export class ConversationService {
 		return this.sendUpdateConversationTriggerToRecipients(recipients, conversationId, businessId, recipientIndex + 1);
 	}
 
-	async sendUserConnectionMessage(conversation: IConversation, user: IUser) {
-		const recipientsConnectionInstances = conversation.recipients.reduce((acc, recipient) => {
-			const recipientConnectionInstances = this.socketService.getAllUserConnectionInstances(recipient);
-
-			if(!!recipientConnectionInstances.length) {
-				acc.push(recipientConnectionInstances);
-			}
-
-			return acc;
-		}, []);
-
-		const sendConnectionMessage = async (recipientIndex: number = 0, instanceIndex: number = 0) => {
-			if(recipientsConnectionInstances.length <= recipientIndex) {
-				return;
-			}
-
-			if(recipientsConnectionInstances[recipientIndex].length <= instanceIndex) {
-				return;
-			}
-
-			const recipientConnectionData = recipientsConnectionInstances[recipientIndex][instanceIndex];
-
-			const message = {
-				text: `${user.username} connected!`,
-				isForce: true,
-				link: undefined,
-				actionType: undefined,
-				isCommandMenuOption: false,
-				conversationId: conversation._id,
-				senderId: conversation.businessId,
-				recipients: conversation.recipients,
-				isConversationSupportedByStaff: true,
-			};
-	
-			const sendedMessage = await this.socketService.sendConversationMessageFromClientToRecipient(recipientConnectionData.connection, message);
-
-			return sendedMessage;
-		}
-
-		sendConnectionMessage();
-	}
-
-	async sendUserDisconnectionMessage(conversation: IConversation, user: IUser) {
-		const recipientsConnectionInstances = conversation.recipients.reduce((acc, recipient) => {
-			const recipientConnectionInstances = this.socketService.getAllUserConnectionInstances(recipient);
-
-			if(!!recipientConnectionInstances.length) {
-				acc.push(recipientConnectionInstances);
-			}
-
-			return acc;
-		}, []);
-
-		const sendConnectionMessage = async (recipientIndex: number = 0, instanceIndex: number = 0) => {
-			if(recipientsConnectionInstances.length <= recipientIndex) {
-				return;
-			}
-
-			if(recipientsConnectionInstances[recipientIndex].length <= instanceIndex) {
-				return;
-			}
-
-			const recipientConnectionData = recipientsConnectionInstances[recipientIndex][instanceIndex];
-
-			const message = {
-				text: `${user.username} disconnected!`,
-				isForce: true,
-				link: undefined,
-				actionType: undefined,
-				isCommandMenuOption: false,
-				conversationId: conversation._id,
-				senderId: conversation.businessId,
-				recipients: conversation.recipients,
-				isConversationSupportedByStaff: true,
-			};
-	
-			const sendedMessage = await this.socketService.sendConversationMessageFromClientToRecipient(recipientConnectionData.connection, message);
-
-			return sendedMessage;
-		}
-
-		sendConnectionMessage();
-	}
-
 	async startConversationSupportingByStaff(conversationId: string, staffId: string, user: IUser) {
 		const liveAgentSettings = await this.botService.getLiveAgentSettings(user);
 		
@@ -574,10 +517,38 @@ export class ConversationService {
 			conversation.recipients.push(staffId);
 		}
 
+		const staffData = this.socketService.getUserById(staffId);
+
+		const generalSettings = await this.botService.getGeneralSettings(staffData.businessId);
+
+		conversation.isConversationWaitingStaff = false;
+		conversation.isConversationSupportedByStaff = true;
+
+		const message = {
+			text: `${staffData.username} connected!`,
+			isForce: true,
+			senderId: staffData.businessId,
+			recipients: conversation.recipients,
+			isConversationSupportedByStaff: true,
+		};
+
+		const messageConfiguration = {
+			message, 
+			conversationId,
+			user: staffData,
+			generalSettings,
+			putToDatabase: true,
+			recipients: conversation.recipients.filter((recipient) => recipient !== staffData.businessId),
+		};
+
+		const connectionMessage = await this.socketService.generateMessage(messageConfiguration);
+		connectionMessage.message.isReaded = true;
+
+		conversation.messages.push(connectionMessage.message);
+
 		await conversation.save();
 
 		await this.sendUpdateConversationTriggerToRecipients(conversation.recipients, conversation._id, user.businessId);
-		await this.sendUserConnectionMessage(conversation, user);
 
 		if(liveAgentSettings.liveChatDuration.enabled) {
 			let timer = liveAgentSettings.liveChatDuration.duration || 0;
@@ -595,17 +566,39 @@ export class ConversationService {
 
 	async endConversationSupportingByStaff(conversationId: string, user: IUser) {
 		const conversation = await this.findConversationById(conversationId, user);
+		const generalSettings = await this.botService.getGeneralSettings(user.businessId);
 
 		conversation.isConversationWaitingStaff = false;
 		conversation.isConversationSupportedByStaff = false;
 		conversation.messages.reverse();
 		conversation.messages = conversation.messages.slice(0, 25);
-		conversation.messages.reverse()
+		conversation.messages.reverse();
+
+		const message = {
+			text: `${user.username} disconnected!`,
+			isForce: true,
+			senderId: user.businessId,
+			recipients: conversation.recipients,
+			isConversationSupportedByStaff: true,
+		};
+
+		const messageConfiguration = {
+			message, 
+			conversationId,
+			user,
+			generalSettings,
+			putToDatabase: true,
+			recipients: conversation.recipients.filter((recipient) => recipient !== user.businessId),
+		};
+
+		const disconnectionMessage = await this.socketService.generateMessage(messageConfiguration);
+		disconnectionMessage.message.isReaded = true;
+
+		conversation.messages.push(disconnectionMessage.message);
 		
 		await conversation.save();
 
 		await this.sendUpdateConversationTriggerToRecipients(conversation.recipients, conversation._id, user.businessId);
-		await this.sendUserDisconnectionMessage(conversation, user);
 
 		return this.fillConversation(conversation, user);
 	}

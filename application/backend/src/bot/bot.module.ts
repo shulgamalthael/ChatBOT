@@ -7,6 +7,7 @@ import { SocketModule } from "../socket/socket.module";
 import { ConversationModule } from "../conversation/conversation.module";
 import { NotificationsModule } from "../notifications/notifications.module";
 
+import TwillioSettingsModel from "./entities/twillio";
 import CommandsListModel from "./entities/commandsList";
 import GeneralSettingsModel from "./entities/generalSettings";
 import LiveAgentSettingsModel from "./entities/liveAgentSettings";
@@ -16,7 +17,7 @@ const imports = [
 	forwardRef(() => SocketModule),
 	forwardRef(() => ConversationModule),
 	forwardRef(() => NotificationsModule),
-	MongooseModule.forFeature([GeneralSettingsModel, CommandsListModel, LiveAgentSettingsModel]),
+	MongooseModule.forFeature([GeneralSettingsModel, CommandsListModel, LiveAgentSettingsModel, TwillioSettingsModel]),
 ];
 
 @Module({

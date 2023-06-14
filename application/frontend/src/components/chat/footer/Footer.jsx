@@ -14,7 +14,6 @@ import Slider from "../../common/Slider/Slider";
 import "./footer.css";
 import SaveButton from "../../common/SaveButton";
 import WLSpinner from "../../common/wlSpinner/WLSpinner";
-import { useBotSettings } from "../../../stores/botSettings/botSettingsStore";
 
 const SoundSlider = () => {
 	console.log("Sound Slider Rendered!");
@@ -61,6 +60,7 @@ const PowerBlock = () => {
 	const isConversationSupportedByStaff = useConversationsStore((state) => state.isConversationSupportedByStaff);
 	const endConversationSupportingByStaff = useConversationsStore((state) => state.endConversationSupportingByStaff);
 	const isConversationSupportingDataFetching = useConversationsStore((state) => state.isConversationSupportingDataFetching);
+
 	const iconClass = isStopped ? "chat-icon-dropdown rotate-270" : "chat-icon-power";
 
 	const isUserAreStaff = userData?.role === "staff";
@@ -148,6 +148,7 @@ const MessageInput = () => {
 	const generateOutputMessage = useConversationsStore((state) => state.generateOutputMessage);
 	const isStopped = useConversationsStore((state) => state.botConversationSettings.isStopped);
 	const isConversationWaitingStaff = useConversationsStore((state) => state.isConversationWaitingStaff);
+	const isLastMessageBeingUserForm = useConversationsStore((state) => state.isLastMessageBeingUserForm);
 	const isConversationLockedForStaff = useConversationsStore((state) => state.isConversationLockedForStaff);
 	const startConversationSupportingByStaff = useConversationsStore((state) => state.startConversationSupportingByStaff);
 	const isConversationSupportingDataFetching = useConversationsStore((state) => state.isConversationSupportingDataFetching);
@@ -157,10 +158,11 @@ const MessageInput = () => {
 	const isBotConversation = selectedConversation?.recipients?.includes(userData?.businessId);
 
 	const sendMessageCallback = useCallback((e) => {
+		
 		if(!socket || !socket.connected) {
 			processSocketConnection();
 		}
-
+		
 		if(socket && socket.connected && e.keyCode === 13 && e.target.value) {
 			const newMessage = generateOutputMessage(e.target.value);
 
@@ -185,7 +187,7 @@ const MessageInput = () => {
 		)
 	}
 
-	if(isConversationLocked || (isStopped && isBotConversation && !isUserCreatedConversation) || isConversationWaitingStaff) {
+	if(isConversationLocked || isLastMessageBeingUserForm || (isStopped && isBotConversation && !isUserCreatedConversation) || isConversationWaitingStaff) {
 		return null;
 	}
 

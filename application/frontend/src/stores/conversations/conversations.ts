@@ -32,10 +32,10 @@ interface IMessagesCloudState {
 }
 
 interface ConversationsState {
-	botConversationSettings: IBotConversationSettings;
-	messagesCloudState: IMessagesCloudState;
 	isLastPaginationPage: boolean;
 	conversations: IConversation[];
+	messagesCloudState: IMessagesCloudState;
+	botConversationSettings: IBotConversationSettings;
 
 	isConversationFetching: boolean;
 	isMessagesListFetching: boolean;
@@ -47,6 +47,7 @@ interface ConversationsState {
 
 	isConversationLocked: boolean;
 	isConversationWaitingStaff: boolean;
+	isLastMessageBeingUserForm: boolean;
 	isConversationLockedForStaff: boolean;
 	isConversationSupportedByStaff: boolean;
 
@@ -73,6 +74,7 @@ interface ConversationsState {
 
 	lockMessagesPagination: () => void;
 	refreshMessagesPagination: () => void;
+	updateIsLastMessageBeingUserForm: () => void;
 	endConversationSupportingByStaff: () => Promise<void>;
 	startConversationSupportingByStaff: () => Promise<void>;
 	updateIsConversationLockedState: (prop: boolean) => void;
@@ -89,7 +91,7 @@ interface ConversationsState {
 	scrollIntoView: (element: HTMLElement, behavior: ScrollBehavior, block: ScrollLogicalPosition, isForce: boolean) => void;
 }
 
-export const useConversationsStore = create<ConversationsState>((set, get): ConversationsState => {
+export const useConversationsStore = create<ConversationsState>((set, get): ConversationsState => {	
 	const lockBotConversation = (userData: IUserData) => {
 		const selectedConversation = get().selectedConversation;
 		const isBotConversation = selectedConversation?.recipients?.includes(userData?.businessId);
@@ -103,7 +105,6 @@ export const useConversationsStore = create<ConversationsState>((set, get): Conv
 		if(isBotConversation) {
 			set(produce((draft) => {
 				draft.botConversationSettings.isStopped = JSON.parse(localStorage.getItem(conversationLocalStorageKeys.isBotConversationStopped) || "false");
-				console.log(JSON.parse(localStorage.getItem(conversationLocalStorageKeys.isBotConversationStopped) || "false"));
 			}));
 		}
 	}
@@ -135,7 +136,7 @@ export const useConversationsStore = create<ConversationsState>((set, get): Conv
 
 			if(conversationIndex >= 0) {
 				set(produce((draft) => {
-					draft.conversations[conversationIndex] = conversation;
+					draft.conversations.splice(conversationIndex, 1, conversation);
 				}));
 				
 				return true;
@@ -261,8 +262,6 @@ export const useConversationsStore = create<ConversationsState>((set, get): Conv
 
 		const offset = get().messagesPaginationOffset;
 
-		console.log({ offset });
-
 		const { isFetched, data }: { isFetched: boolean, data: IConversation } = await queryConversationByIdAPI(selectedConversation._id, offset + 1);
 
 		if(isFetched && data && Array.isArray(data.messages) && !!data.messages.length) {
@@ -312,6 +311,8 @@ export const useConversationsStore = create<ConversationsState>((set, get): Conv
 
 		if(conversationIndex < 0) {
 			const { isFetched, data } = await queryConversationByIdAPI(message.conversationId);
+
+			console.log('addMessage', { message, conversationIndex });
 
 			if(isFetched && data) {
 				conversation = data;
@@ -636,6 +637,15 @@ export const useConversationsStore = create<ConversationsState>((set, get): Conv
 		set({ messagesPaginationOffset: 1 });
 	}
 
+	const updateIsLastMessageBeingUserForm = () => {
+		const selectedConversation = get().selectedConversation;
+
+		const messages = selectedConversation?.messages || [];
+		const isLastMessageBeingUserForm = messages[messages.length - 1]?.actionType === 'userForm';
+
+		set({ isLastMessageBeingUserForm });
+	}
+
 	return {
 		botConversationSettings: {
 			isStopped: false
@@ -652,10 +662,10 @@ export const useConversationsStore = create<ConversationsState>((set, get): Conv
 		selectedConversation: null,
 		messagesPaginationOffset: 1,
 		isLastPaginationPage: false,
-
-
+	
 		isMessagesListFetching: false,
 		isConversationFetching: false,
+		isLastMessageBeingUserForm: false,
 		isConversationSupportingDataFetched: false,
 		isConversationSupportingDataFetching: false,
 
@@ -690,10 +700,11 @@ export const useConversationsStore = create<ConversationsState>((set, get): Conv
 		increaseUnreadedMessagesCount,
 		calculateUnreadedMessagesCount,
 		toggleConversationFetchingFlag,
-		queryConversationByIdAndSelectIt,
 		processInputConversationMessage,
+		queryConversationByIdAndSelectIt,
 
 		updateIsConversationLockedState,
+		updateIsLastMessageBeingUserForm,
 		endConversationSupportingByStaff,
 		startConversationSupportingByStaff,
 		updateIsConversationWaitingStaffState,

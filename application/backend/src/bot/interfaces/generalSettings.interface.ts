@@ -1,7 +1,7 @@
 import { IPage } from "./page.interface";
 
 export interface IGeneralSettings {
-    allowPages: IPage[];
+    allowPages?: IPage[];
     botName: string;
     enabled: boolean;
     botAvatar: string;

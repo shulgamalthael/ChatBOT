@@ -9,11 +9,11 @@ import { useConversationsStore } from "../../../stores/conversations/conversatio
 
 /* @components */
 import Avatar from "../../common/Avatar";
-import { useNotificationsStore } from "../../../stores/notifications/notificationsStore";
 import SaveButton from "../../common/SaveButton";
 import CancelButton from "../../common/CancelButton";
 import { readNotificationsAPI } from "../../../api/api";
 import { getUserStatus } from "../../../scripts/getUserStatus";
+import { useNotificationsStore } from "../../../stores/notifications/notificationsStore";
 
 const Staff = ({ staff }) => {
 	const userData = useUserStore((state) => state.userData);
@@ -93,7 +93,10 @@ const Conversation = ({ conversation }) => {
 				</div>
 			}
 			{!lastMessage && <div className="chat-menu-item-name">{conversation.title}</div>}
-			<div className="chat-menu-item-counter">{conversation.unreadedMessagesCount}</div>
+			{conversation.unreadedMessagesCount 
+				?	<div className="chat-menu-item-counter">{conversation.unreadedMessagesCount}</div>
+				: 	null
+			}
 		</div>
 	);
 }

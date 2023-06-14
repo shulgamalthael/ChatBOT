@@ -16,7 +16,6 @@ interface ICloudProps {
 }
 
 const Cloud: FC<ICloudProps> = ({ cloud, index }) => {
-    const [width, setWidth] = useState(0);
     const [cloudOwnerData, setCloudOwnerData] = useState<IUserData | null>(null);
     const timeout = useRef<NodeJS.Timeout | undefined>(undefined);
 
@@ -29,10 +28,6 @@ const Cloud: FC<ICloudProps> = ({ cloud, index }) => {
         :   cloud.data.title
     ;
     
-    const offset = useMemo(() => {
-        return `calc(${(index * width) + (index * 5)}px)`;
-    }, [index, width]);
-
     const openChat = useSettingsStore((state) => state.openChat);
     const closeCloud = useCloudStore((state) => state.closeCloud);
     const showMainMenu = useWindows((state) => state.showMainMenu);
@@ -41,7 +36,10 @@ const Cloud: FC<ICloudProps> = ({ cloud, index }) => {
     const closeAllSimilarClouds = useCloudStore((state) => state.closeAllSimilarClouds);
     const queryConversationByIdAndSelectIt = useConversationsStore((state) => state.queryConversationByIdAndSelectIt);
     
-    const messageClickHandler = async () => {
+    const messageClickHandler = async (e: MouseEvent<HTMLDivElement>) => {
+        e?.preventDefault();
+        e?.stopPropagation();
+
         if(cloud.type === "notification") {
             closeCloud(index);
             openChat();
@@ -101,18 +99,10 @@ const Cloud: FC<ICloudProps> = ({ cloud, index }) => {
         startTimeout();
     },[index, startTimeout]);
 
-    useLayoutEffect(() => {
-        const cloud = cloudRef.current;
-        if(cloud) {
-            setWidth(cloud.clientWidth);
-        }
-    }, [cloudRef]);
-
     return(
         <React.Fragment>
             <div
-                ref={cloudRef} 
-                style={{ right: offset }}
+                ref={cloudRef}
                 onMouseEnter={endTimeout} 
                 onMouseLeave={startTimeout}
                 onClick={messageClickHandler} 
@@ -121,8 +111,8 @@ const Cloud: FC<ICloudProps> = ({ cloud, index }) => {
                 {cloudOwnerData
                     ?   (
                             <React.Fragment>
-                                <div className="wl-cb-messageCloudCloseBlock">
-                                    <i onClick={close} className="chat-icon-close" />
+                                <div onClick={close} className="wl-cb-messageCloudCloseBlock">
+                                    <i className="chat-icon-close" />
                                 </div>
                                 <div className="wl-cb-messageCloudAvatarContainer">
                                     <div className="h-25 w-25 m-5">
@@ -140,16 +130,67 @@ const Cloud: FC<ICloudProps> = ({ cloud, index }) => {
     );
 }
 
+const CloseAllButton = () => {
+    const cloudList = useCloudStore((state) => state.cloudList);
+    const closeAllClouds = useCloudStore((state) => state.closeAllClouds);
+
+    const closeAllCloudsCallback = useCallback((e: MouseEvent<HTMLDivElement>) => {
+        e?.preventDefault();
+        e?.stopPropagation();
+
+        closeAllClouds();
+    }, [closeAllClouds]);
+
+    if(!Array.isArray(cloudList) || cloudList.length < 2) {
+        return null;
+    }
+
+    return(
+        <div 
+            onClick={closeAllCloudsCallback} 
+            className="wl-cb-cloud-closeAll h-25 w-25 absolute flex flex-col flex-center items-center top-half cursor-pointer br-full bg-primary color-secondary"
+        >
+            +
+        </div>
+    )
+}
+
 const CloudList = () => {
     const cloudList = useCloudStore((state) => state.cloudList);
+
+    // const cloudList = Array(10).fill({
+    //     "type": "message",
+    //     "data": {
+    //         "_id": "4324815019688797",
+    //         "conversationId": "648723ffef763030a4f48c25",
+    //         "isReaded": false,
+    //         "text": "wadawdaw",
+    //         "sendedAt": "2023-06-12T13:56:15.408Z",
+    //         "sender": {
+    //             "_id": "4444",
+    //             "username": "Ahill BOT"
+    //         },
+    //         "recipients": [
+    //             {
+    //                 "_id": "0335481386183841",
+    //                 "username": "guest#0335"
+    //             }
+    //         ],
+    //         "unreadedMessagesCount": 0
+    //     }
+    // });
+
     return(
-        cloudList.map((cloud, cloudIndex) => (
-            <Cloud
-                cloud={cloud}
-                index={cloudIndex}
-                key={cloud.data._id} 
-            />
-        ))
+        <div className="wl-cb-cloudList fixed bottom-0 right-0 w-200 mr-5">
+            <CloseAllButton />
+            {cloudList.map((cloud, cloudIndex) => (
+                <Cloud
+                    cloud={cloud}
+                    index={cloudIndex}
+                    key={cloud.data._id} 
+                />
+            ))}
+        </div>
     );
 }
 

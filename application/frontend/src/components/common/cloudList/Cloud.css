@@ -1,16 +1,28 @@
+.wl-cb-cloudList {
+    z-index: 2;
+    display: flex;
+    flex-direction: column-reverse;
+}
+
 .wl-cb-messageCloudCloseBlock {
     position: absolute;
-    top: 0;
-    right: 0;
+    left: 0;
+    top: 50%;
     opacity: 0;
     width: 25px;
     height: 25px;
-    transition: 0.1s;
     display: flex;
     cursor: pointer;
+    transition: 0.1s;
     border-radius: 5px;
+    transform: translate(0, -50%);
     color: var(--secondary-color);
     background-color: var(--primary-color);
+}
+
+.wl-cb-cloud-closeAll {
+    left: -55px;
+    transform: rotate(45deg);
 }
 
 .wl-cb-messageCloudCloseBlock i {
@@ -23,19 +35,19 @@
 }
 
 .wl-cb-messageCloud:hover .wl-cb-messageCloudCloseBlock {
-    top: -30px;
     opacity: 1;
+    left: -35px;
 }
 
 .wl-cb-messageCloud {
     z-index: 2;
-    position: fixed;
+    position: relative;
     display: flex;
     width: 200px;
     height: 100px;
     right: 0;
     bottom: 0;
-    margin: 5px;
+    margin-bottom: 5px;
     padding: 5px;
     cursor: pointer;
     border-radius: 5px;

@@ -16,6 +16,8 @@ const ChatApplication = () => {
 	const isDeployed = useSettingsStore((state) => state.isDeployed);
 	const isPageAccessed = useBotSettings((state) => state.isPageAccessed);
 
+	console.log('isPageAccessed ===>', { isPageAccessed });
+
 	if(!isDeployed || !isPageAccessed) {
 		return null;
 	}
