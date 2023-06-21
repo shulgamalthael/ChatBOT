@@ -1,0 +1,18 @@
+{
+  "files": {
+    "main.js": "/static/js/main.js",
+    "main.css": "/static/css/main.18a90311.css",
+    "static/media/fontello.svg?21872627": "/static/media/fontello.cd8066cfa83f6d28f59c.svg",
+    "static/media/fontello.eot?21872627": "/static/media/fontello.5a3770e93f6f7614eb29.eot",
+    "static/media/fontello.ttf?21872627": "/static/media/fontello.0ddb2436005a6d9f0342.ttf",
+    "static/media/fontello.woff?21872627": "/static/media/fontello.39447b4dfcc26ce12b4c.woff",
+    "static/media/fontello.woff2?21872627": "/static/media/fontello.d832911adf648fd04cc1.woff2",
+    "index.html": "/index.html",
+    "main.js.map": "/static/js/main.js.map",
+    "main.18a90311.css.map": "/static/css/main.18a90311.css.map"
+  },
+  "entrypoints": [
+    "static/js/main.js",
+    "static/css/main.18a90311.css"
+  ]
+}
