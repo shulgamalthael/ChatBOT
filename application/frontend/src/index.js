@@ -12,11 +12,13 @@ import initAxios from './api/axios';
 import './index.css';
 import './assets/fonts/wl-icons/IconFont.css';
 
+console.log('Hello from true react!', document);
+
 const root = ReactDOM.createRoot(document.getElementById('chatroot'));
 root.render(
   <BrowserRouter>
     <App />
-		{/* <div>Hello World!</div> */}
+		<div>Hello World!</div>
   </BrowserRouter>
 );
 
